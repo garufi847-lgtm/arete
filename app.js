@@ -1883,40 +1883,26 @@ async function backupExport(){
   const nomeDefault=`ARETE_backup_${today()}`;
   const nomeInput=prompt('Nome del file di backup:', nomeDefault);
   if(nomeInput===null) return;
-  const nomeBase=(nomeInput.trim()||nomeDefault).replace(/\.(json|txt)$/i,'').replace(/[<>:"/\\|?*]/g,'_');
-  const nomeJson=nomeBase+'.json';
-  const nomeTxt=nomeBase+'.json.txt'; // .txt passa sempre il canShare, rinominalo dopo
+  const nomeJson=(nomeInput.trim()||nomeDefault)
+    .replace(/\.(json|txt)$/i,'')
+    .replace(/[<>:"/\\|?*]/g,'_')
+    +'.json';
 
   const payload={version:1,exportedAt:new Date().toISOString(),schede:savedForms};
   const contenuto=JSON.stringify(payload,null,2);
 
-  // ── Metodo 1: Web Share API con file ───────────────────────────────────
-  // Android blocca .json ma accetta .txt — il contenuto rimane JSON valido
-  // L'utente può rinominare .json.txt → .json dopo il salvataggio
+  // ── Metodo 1: Web Share API con file .json ──────────────────────────────
   if(navigator.share && navigator.canShare){
     try{
-      // Prima prova con .json nativo
-      const blobJson=new Blob([contenuto],{type:'application/json;charset=utf-8'});
-      const fileJson=new File([blobJson],nomeJson,{type:'application/json'});
-      if(navigator.canShare({files:[fileJson]})){
+      const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
+      const file=new File([blob],nomeJson,{type:'application/json'});
+      if(navigator.canShare({files:[file]})){
         await navigator.share({
           title:'Backup ARETE',
           text:`Backup ARETE – ${savedForms.length} schede – ${today()}`,
-          files:[fileJson]
+          files:[file]
         });
         showToast('✅ Backup .json salvato!','success');
-        return;
-      }
-      // Fallback: usa .txt (stesso contenuto JSON, rinomina dopo)
-      const blobTxt=new Blob([contenuto],{type:'text/plain;charset=utf-8'});
-      const fileTxt=new File([blobTxt],nomeTxt,{type:'text/plain'});
-      if(navigator.canShare({files:[fileTxt]})){
-        await navigator.share({
-          title:'Backup ARETE',
-          text:`Backup ARETE – ${savedForms.length} schede – ${today()}\n(rinomina il file da .json.txt a .json per importarlo)`,
-          files:[fileTxt]
-        });
-        showToast('✅ Salvato — rinomina .json.txt → .json','success');
         return;
       }
     }catch(e){
@@ -1924,7 +1910,23 @@ async function backupExport(){
     }
   }
 
-  // ── Metodo 2: median.share.sharePage (APK Median) ──────────────────────
+  // ── Metodo 2: download via <a> con data URI (funziona su Android WebView) ─
+  // Usa data URI invece di blob URL — più compatibile con WebView/APK
+  try{
+    const b64=btoa(unescape(encodeURIComponent(contenuto)));
+    const dataUri='data:application/json;charset=utf-8;base64,'+b64;
+    const a=document.createElement('a');
+    a.href=dataUri;
+    a.download=nomeJson;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>document.body.removeChild(a),1000);
+    showToast('✅ Backup .json scaricato','success');
+    return;
+  }catch(e){}
+
+  // ── Metodo 3: median.share (APK Median — apre menu condivisione Android) ─
   if(window.median && window.median.share){
     try{
       const b64=btoa(unescape(encodeURIComponent(contenuto)));
@@ -1932,32 +1934,20 @@ async function backupExport(){
         url:'data:application/json;base64,'+b64,
         text:`Backup ARETE – ${savedForms.length} schede – ${today()}`
       });
-      showToast('✅ Scegli dove salvare','success');
+      showToast('✅ Scegli dove salvare il .json','success');
       return;
     }catch(e){}
   }
 
-  // ── Metodo 3: medianDownloadBlobUrl (BlobDownloader Median) ────────────
+  // ── Metodo 4: medianDownloadBlobUrl (BlobDownloader Median) ────────────
   if(typeof medianDownloadBlobUrl==='function'){
     try{
       const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
       medianDownloadBlobUrl(URL.createObjectURL(blob),'backup_'+Date.now(),nomeJson);
-      showToast('✅ Backup .json salvato in Download','success');
+      showToast('✅ Backup .json in Download','success');
       return;
     }catch(e){}
   }
-
-  // ── Metodo 4: Download link classico (browser desktop) ─────────────────
-  try{
-    const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url; a.download=nomeJson; a.style.display='none';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },2000);
-    showToast('✅ Backup .json scaricato','success');
-    return;
-  }catch(e){}
 
   // ── Metodo 5: Modal con testo copiabile (fallback universale) ──────────
   mostraBackupTestuale(contenuto, nomeJson);
