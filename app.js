@@ -1889,7 +1889,34 @@ async function backupExport(){
   const contenuto=JSON.stringify(payload,null,2);
   const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
 
-  // ── Metodo 1: Web Share API con file (funziona in TWA/Chrome Android HTTPS) ──
+  // ── Metodo 1: Median/GoNative API nativa (APK Median) ──────────────────
+  // BlobDownloader.js è già iniettato dall'APK — usa gonative_file_writer_sharer
+  if(window.gonative_file_writer_sharer || (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.fileWriterSharer)){
+    try{
+      const downloadId='backup_'+Date.now();
+      medianDownloadBlobUrl(URL.createObjectURL(blob), downloadId, nome);
+      showToast('✅ Backup salvato!','success');
+      return;
+    }catch(e){ console.warn('Median BlobDownloader error:',e); }
+  }
+
+  // ── Metodo 2: median.share.sharePage con data URI (APK Median alternativo) ──
+  if(window.median && window.median.share){
+    try{
+      // Converti in base64 data URI
+      const b64=btoa(unescape(encodeURIComponent(contenuto)));
+      const dataUri='data:application/json;base64,'+b64;
+      // Usa sharePage per aprire il menu condivisione Android
+      median.share.sharePage({
+        url: dataUri,
+        text: `Backup ARETE – ${savedForms.length} schede – ${today()}`
+      });
+      showToast('✅ Scegli dove salvare il backup','success');
+      return;
+    }catch(e){ console.warn('median.share error:',e); }
+  }
+
+  // ── Metodo 3: Web Share API con file (Chrome Android HTTPS) ────────────
   if(navigator.share && navigator.canShare){
     try{
       const file=new File([blob],nome,{type:'application/json'});
@@ -1901,61 +1928,42 @@ async function backupExport(){
     }catch(e){ if(e.name==='AbortError') return; }
   }
 
-  // ── Metodo 2: Download tramite link (browser desktop/mobile con filesystem) ──
+  // ── Metodo 4: Download link classico (browser desktop) ─────────────────
   try{
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    a.href=url; a.download=nome;
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
+    a.href=url; a.download=nome; a.style.display='none';
+    document.body.appendChild(a); a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },2000);
-    // Aspetta un attimo e controlla se il download è partito davvero
-    await new Promise(r=>setTimeout(r,800));
-    // Se siamo qui senza errori, probabile che abbia funzionato
     showToast('✅ Backup scaricato','success');
     return;
-  }catch(e){ /* continua al metodo 3 */ }
+  }catch(e){}
 
-  // ── Metodo 3: Mostra i dati in un modal con copia negli appunti ──
-  // Funziona SEMPRE — anche in WebView senza filesystem
+  // ── Metodo 5: Modal con testo copiabile (fallback universale) ──────────
   mostraBackupTestuale(contenuto, nome);
 }
 
-// Modal di fallback — mostra il backup come testo copiabile
-// Utile in APK/WebView dove il download non è disponibile
+// Modal fallback — mostra il backup come testo copiabile negli appunti
 function mostraBackupTestuale(contenuto, nome){
-  // Rimuovi modal precedente se esiste
   const old=document.getElementById('backup-modal');
   if(old) old.remove();
-
   const modal=document.createElement('div');
   modal.id='backup-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-
-  // Encode in base64 per rendere il testo compatto e facile da copiare
   const b64=btoa(unescape(encodeURIComponent(contenuto)));
-
   modal.innerHTML=`
-    <div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;gap:12px">
-      <div style="font-size:17px;font-weight:700;color:#1a2e1a">💾 Backup — ${nome}</div>
-      <div style="font-size:13px;color:#666;line-height:1.5">
-        Il download non è disponibile su questo dispositivo.<br>
-        <b>Copia il testo</b> e salvalo in un file su Google Drive, Note o WhatsApp.
-      </div>
+    <div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;gap:12px;box-sizing:border-box">
+      <div style="font-size:17px;font-weight:700;color:#1a2e1a">💾 ${nome}</div>
+      <div style="font-size:13px;color:#666;line-height:1.5">Copia il testo e salvalo su Google Drive, Note o invialo via WhatsApp per conservare il backup.</div>
       <textarea id="backup-testo" readonly
-        style="flex:1;min-height:120px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-family:monospace;font-size:11px;resize:none;background:#f8f8f8;color:#333"
+        style="flex:1;min-height:100px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-family:monospace;font-size:11px;resize:none;background:#f8f8f8"
         onclick="this.select()">${b64}</textarea>
       <div style="display:flex;gap:8px">
         <button onclick="
           const t=document.getElementById('backup-testo');
           t.select();
-          if(navigator.clipboard){
-            navigator.clipboard.writeText(t.value).then(()=>{ showToast('✅ Copiato negli appunti!','success'); });
-          } else {
-            document.execCommand('copy');
-            showToast('✅ Copiato negli appunti!','success');
-          }"
+          if(navigator.clipboard){navigator.clipboard.writeText(t.value).then(()=>showToast('✅ Copiato!','success'));}
+          else{document.execCommand('copy');showToast('✅ Copiato!','success');}"
           style="flex:1;padding:11px;background:#1a2e1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px">
           📋 Copia
         </button>
@@ -1963,9 +1971,6 @@ function mostraBackupTestuale(contenuto, nome){
           style="flex:1;padding:11px;background:#f0f0f0;color:#333;border:none;border-radius:8px;cursor:pointer;font-size:14px">
           Chiudi
         </button>
-      </div>
-      <div style="font-size:11px;color:#999;text-align:center">
-        Per importare: premi ⬇️ Ripristina e incolla questo testo
       </div>
     </div>`;
   document.body.appendChild(modal);
