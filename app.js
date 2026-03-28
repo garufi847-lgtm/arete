@@ -1877,20 +1877,49 @@ function downloadBlob(blob,name){
 
 // ===== BACKUP EXPORT / IMPORT =====
 // Esporta TUTTE le schede in un file .json — usalo come backup o per trasferire schede tra dispositivi
-function backupExport(){
+async function backupExport(){
   if(!savedForms.length){showToast('Nessuna scheda da esportare','error');return;}
+
+  // Chiedi il nome del file
   const nomeDefault=`ARETE_backup_${today()}`;
   const nomeInput=prompt('Nome del file di backup:', nomeDefault);
   if(nomeInput===null) return;
   const nome=(nomeInput.trim()||nomeDefault).replace(/\.json$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.json';
+
   const payload={
     version:1,
     exportedAt:new Date().toISOString(),
     schede:savedForms
   };
-  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+  const contenuto=JSON.stringify(payload,null,2);
+
+  // ── File System Access API (Chrome/Edge desktop e Android Chrome ≥86) ──
+  // Permette di scegliere la cartella di destinazione
+  if(window.showSaveFilePicker){
+    try{
+      const handle=await window.showSaveFilePicker({
+        suggestedName: nome,
+        types:[{
+          description:'File di backup ARETE',
+          accept:{'application/json':['.json']}
+        }],
+        startIn:'documents'  // apre di default in Documenti
+      });
+      const writable=await handle.createWritable();
+      await writable.write(contenuto);
+      await writable.close();
+      showToast(`✅ Backup salvato: ${savedForms.length} schede`,'success');
+      return;
+    }catch(e){
+      if(e.name==='AbortError') return; // utente ha annullato il picker
+      // altri errori → fallback download classico
+    }
+  }
+
+  // ── Fallback: download classico (iOS Safari, Firefox, browser senza API) ──
+  const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
   downloadBlob(blob,nome);
-  showToast(`Backup esportato: ${savedForms.length} schede`,'success');
+  showToast(`Backup scaricato: ${savedForms.length} schede`,'success');
 }
 
 // Importa schede da un file .json di backup
