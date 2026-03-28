@@ -1880,58 +1880,110 @@ function downloadBlob(blob,name){
 async function backupExport(){
   if(!savedForms.length){showToast('Nessuna scheda da esportare','error');return;}
 
-  // Chiedi il nome del file
   const nomeDefault=`ARETE_backup_${today()}`;
   const nomeInput=prompt('Nome del file di backup:', nomeDefault);
   if(nomeInput===null) return;
   const nome=(nomeInput.trim()||nomeDefault).replace(/\.json$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.json';
 
-  const payload={
-    version:1,
-    exportedAt:new Date().toISOString(),
-    schede:savedForms
-  };
+  const payload={version:1,exportedAt:new Date().toISOString(),schede:savedForms};
   const contenuto=JSON.stringify(payload,null,2);
+  const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
 
-  // ── File System Access API (Chrome/Edge desktop e Android Chrome ≥86) ──
-  // Permette di scegliere la cartella di destinazione
-  if(window.showSaveFilePicker){
+  // ── Metodo 1: Web Share API con file (funziona in TWA/Chrome Android HTTPS) ──
+  if(navigator.share && navigator.canShare){
     try{
-      const handle=await window.showSaveFilePicker({
-        suggestedName: nome,
-        types:[{
-          description:'File di backup ARETE',
-          accept:{'application/json':['.json']}
-        }],
-        startIn:'documents'  // apre di default in Documenti
-      });
-      const writable=await handle.createWritable();
-      await writable.write(contenuto);
-      await writable.close();
-      showToast(`✅ Backup salvato: ${savedForms.length} schede`,'success');
-      return;
-    }catch(e){
-      if(e.name==='AbortError') return; // utente ha annullato il picker
-      // altri errori → fallback download classico
-    }
+      const file=new File([blob],nome,{type:'application/json'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({title:'Backup ARETE',text:`${savedForms.length} schede`,files:[file]});
+        showToast('✅ Backup condiviso!','success');
+        return;
+      }
+    }catch(e){ if(e.name==='AbortError') return; }
   }
 
-  // ── Fallback: download classico (iOS Safari, Firefox, browser senza API) ──
-  const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
-  downloadBlob(blob,nome);
-  showToast(`Backup scaricato: ${savedForms.length} schede`,'success');
+  // ── Metodo 2: Download tramite link (browser desktop/mobile con filesystem) ──
+  try{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=nome;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },2000);
+    // Aspetta un attimo e controlla se il download è partito davvero
+    await new Promise(r=>setTimeout(r,800));
+    // Se siamo qui senza errori, probabile che abbia funzionato
+    showToast('✅ Backup scaricato','success');
+    return;
+  }catch(e){ /* continua al metodo 3 */ }
+
+  // ── Metodo 3: Mostra i dati in un modal con copia negli appunti ──
+  // Funziona SEMPRE — anche in WebView senza filesystem
+  mostraBackupTestuale(contenuto, nome);
 }
 
-// Importa schede da un file .json di backup
-// Merge intelligente: aggiunge le nuove, aggiorna quelle esistenti se il backup è più recente
+// Modal di fallback — mostra il backup come testo copiabile
+// Utile in APK/WebView dove il download non è disponibile
+function mostraBackupTestuale(contenuto, nome){
+  // Rimuovi modal precedente se esiste
+  const old=document.getElementById('backup-modal');
+  if(old) old.remove();
+
+  const modal=document.createElement('div');
+  modal.id='backup-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  // Encode in base64 per rendere il testo compatto e facile da copiare
+  const b64=btoa(unescape(encodeURIComponent(contenuto)));
+
+  modal.innerHTML=`
+    <div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:17px;font-weight:700;color:#1a2e1a">💾 Backup — ${nome}</div>
+      <div style="font-size:13px;color:#666;line-height:1.5">
+        Il download non è disponibile su questo dispositivo.<br>
+        <b>Copia il testo</b> e salvalo in un file su Google Drive, Note o WhatsApp.
+      </div>
+      <textarea id="backup-testo" readonly
+        style="flex:1;min-height:120px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-family:monospace;font-size:11px;resize:none;background:#f8f8f8;color:#333"
+        onclick="this.select()">${b64}</textarea>
+      <div style="display:flex;gap:8px">
+        <button onclick="
+          const t=document.getElementById('backup-testo');
+          t.select();
+          if(navigator.clipboard){
+            navigator.clipboard.writeText(t.value).then(()=>{ showToast('✅ Copiato negli appunti!','success'); });
+          } else {
+            document.execCommand('copy');
+            showToast('✅ Copiato negli appunti!','success');
+          }"
+          style="flex:1;padding:11px;background:#1a2e1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px">
+          📋 Copia
+        </button>
+        <button onclick="document.getElementById('backup-modal').remove()"
+          style="flex:1;padding:11px;background:#f0f0f0;color:#333;border:none;border-radius:8px;cursor:pointer;font-size:14px">
+          Chiudi
+        </button>
+      </div>
+      <div style="font-size:11px;color:#999;text-align:center">
+        Per importare: premi ⬇️ Ripristina e incolla questo testo
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// Importa schede da file .json oppure da testo base64 incollato
 function backupImport(input){
   const file=input.files[0];
   if(!file) return;
   const reader=new FileReader();
   reader.onload=function(e){
     try{
-      const raw=JSON.parse(e.target.result);
-      // Supporta sia il formato {version,schede:[]} che il vecchio array diretto
+      let testo=e.target.result.trim();
+      // Se è base64 (dal modal copia/incolla), decodifica prima
+      if(!testo.startsWith('{') && !testo.startsWith('[')){
+        try{ testo=decodeURIComponent(escape(atob(testo))); }catch(ex){}
+      }
+      const raw=JSON.parse(testo);
       const schede=Array.isArray(raw)?raw:(raw.schede&&Array.isArray(raw.schede)?raw.schede:null);
       if(!schede||!schede.length){showToast('File non valido o vuoto','error');return;}
       let aggiunte=0,aggiornate=0;
@@ -1943,9 +1995,9 @@ function backupImport(input){
       });
       localStorage.setItem('arete_forms',JSON.stringify(savedForms));
       renderHomeSaved();renderArchive();
-      showToast(`Importate: ${aggiunte} nuove, ${aggiornate} aggiornate`,'success');
+      showToast(`✅ Importate: ${aggiunte} nuove, ${aggiornate} aggiornate`,'success');
     }catch(err){showToast('Errore lettura file','error');}
-    input.value=''; // reset per permettere reimport dello stesso file
+    input.value='';
   };
   reader.readAsText(file,'utf-8');
 }
