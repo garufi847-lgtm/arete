@@ -913,6 +913,7 @@ async function shareSaved(id){
   const specie=(d.specie||'').split(' - ')[0]||'';
   const dataVal=d.data||f.savedAt.split('T')[0];
   const idAlb=d.id_albero||'';
+  const titolo=`ARETE – ${tlabels[f.type]||f.type.toUpperCase()}`;
   const nomeSuggerito=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}`;
 
   const nomeInput=prompt('Nome del file PDF:', nomeSuggerito);
@@ -923,11 +924,166 @@ async function shareSaved(id){
   const pdfBlob=await generaPDFBlob(f, nomeFile);
   if(!pdfBlob){ exportPDF(id); return; }
 
-  const titolo=`ARETE – ${tlabels[f.type]||f.type.toUpperCase()}`;
-  const pdfFile=new File([pdfBlob],nomeFile,{type:'application/pdf'});
+  // Mostra dialog con tutte le opzioni: Drive, WhatsApp, Mail, Scarica
+  mostraDialogCondivisione(pdfBlob, nomeFile, titolo, specie, dataVal, idAlb);
+}
 
-  // Salva/condividi PDF — usa la funzione unificata che gestisce PWA e APK/TWA
-  salvaPDFBlob(pdfBlob, nomeFile);
+// ── Dialog scelta condivisione ─────────────────────────────────────────────
+function mostraDialogCondivisione(pdfBlob, nomeFile, titolo, specie, dataVal, idAlb){
+  const testo=`Scheda ARETE: ${specie}${idAlb?' · ID '+idAlb:''} · ${dataVal} · Utente n° ${N_UTENTE}`;
+  const pdfUrl=URL.createObjectURL(pdfBlob);
+  const modal=sel('export-modal');
+  const content=sel('export-modal-content');
+  modal.classList.remove('hidden');
+
+  const mailSubj=encodeURIComponent(`${titolo} – ${specie} – ${dataVal}`);
+  const mailBody=encodeURIComponent(`${testo}\n\nIn allegato la scheda in formato PDF.`);
+
+  content.innerHTML=`
+    <div class="modal-handle"></div>
+    <div class="modal-title">📄 ${nomeFile.replace('.pdf','')}</div>
+    <div class="modal-subtitle">Scegli dove salvare o inviare il PDF</div>
+    <div class="export-options">
+      <div class="export-option" onclick="salvaSuDrive('${pdfUrl}','${nomeFile}')">
+        <div class="export-icon">
+          <svg width="28" height="28" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/>
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 11.5z" fill="#ea4335"/>
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+          </svg>
+        </div>
+        <div class="export-info"><h4>Salva su Google Drive</h4><p>Carica il PDF nel tuo Drive</p></div>
+      </div>
+      <div class="export-option" onclick="condividiWhatsApp('${pdfUrl}','${nomeFile}','${testo.replace(/'/g,"\\'")}')">
+        <div class="export-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.554 4.1 1.523 5.824L.057 23.8a.5.5 0 00.614.658l6.142-1.612A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.001-1.371l-.357-.213-3.705.972.989-3.614-.233-.372A9.784 9.784 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+        </div>
+        <div class="export-info"><h4>Invia su WhatsApp</h4><p>Condividi il PDF via WhatsApp</p></div>
+      </div>
+      <div class="export-option" onclick="condividiMail('${pdfUrl}','${nomeFile}','${mailSubj}','${mailBody}')">
+        <div class="export-icon" style="font-size:28px">📧</div>
+        <div class="export-info"><h4>Invia per Mail</h4><p>Allega il PDF a un'email</p></div>
+      </div>
+      <div class="export-option" onclick="downloadPDFBlob('${pdfUrl}','${nomeFile}')">
+        <div class="export-icon" style="font-size:28px">⬇️</div>
+        <div class="export-info"><h4>Scarica PDF</h4><p>Salva il PDF sul dispositivo</p></div>
+      </div>
+    </div>`;
+
+  setTimeout(()=>URL.revokeObjectURL(pdfUrl), 300000);
+}
+
+// ── Google Drive upload ────────────────────────────────────────────────────
+let _driveToken=null, _driveTokenExpiry=0;
+async function getDriveToken(){
+  if(_driveToken&&Date.now()<_driveTokenExpiry-60000) return _driveToken;
+  let cid=localStorage.getItem('arete_gcid')||'';
+  if(!cid){
+    cid=prompt('Client ID Google OAuth2\n(console.cloud.google.com → Credenziali → OAuth 2.0):','');
+    if(!cid) return null;
+    localStorage.setItem('arete_gcid',cid.trim());
+  }
+  return new Promise(resolve=>{
+    const doAuth=()=>{
+      try{
+        const client=google.accounts.oauth2.initTokenClient({
+          client_id:cid.trim(),
+          scope:'https://www.googleapis.com/auth/drive.file',
+          callback:(resp)=>{
+            if(resp.error||!resp.access_token){resolve(null);return;}
+            _driveToken=resp.access_token;
+            _driveTokenExpiry=Date.now()+resp.expires_in*1000;
+            resolve(_driveToken);
+          }
+        });
+        client.requestAccessToken({prompt:''});
+      }catch(e){resolve(null);}
+    };
+    if(window.google&&google.accounts){doAuth();}
+    else{
+      const s=document.createElement('script');
+      s.src='https://accounts.google.com/gsi/client';
+      s.onload=doAuth; s.onerror=()=>resolve(null);
+      document.head.appendChild(s);
+    }
+  });
+}
+
+async function salvaSuDrive(pdfUrl, nomeFile){
+  sel('export-modal').classList.add('hidden');
+  showToast('Connessione Google Drive…');
+  const token=await getDriveToken();
+  if(!token){showToast('Accesso Drive non riuscito','error');downloadDiretto(pdfUrl,nomeFile);return;}
+  showToast('Caricamento su Drive…');
+  try{
+    const res=await fetch(pdfUrl);
+    const blob=await res.blob();
+    const meta=JSON.stringify({name:nomeFile,mimeType:'application/pdf'});
+    const form=new FormData();
+    form.append('metadata',new Blob([meta],{type:'application/json'}));
+    form.append('file',new File([blob],nomeFile,{type:'application/pdf'}));
+    const up=await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      {method:'POST',headers:{'Authorization':'Bearer '+token},body:form}
+    );
+    if(!up.ok) throw new Error('HTTP '+up.status);
+    const result=await up.json();
+    showToast('✅ Salvato su Google Drive!','success');
+    if(result.webViewLink) setTimeout(()=>window.open(result.webViewLink,'_blank'),1500);
+  }catch(err){
+    showToast('Errore Drive — scarico localmente','error');
+    downloadDiretto(pdfUrl,nomeFile);
+  }
+}
+
+async function condividiWhatsApp(pdfUrl, nomeFile, testo){
+  sel('export-modal').classList.add('hidden');
+  try{
+    const res=await fetch(pdfUrl);
+    const blob=await res.blob();
+    const file=new File([blob],nomeFile,{type:'application/pdf'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({title:'ARETE PDF',text:testo,files:[file]});
+      showToast('PDF condiviso!','success');
+      return;
+    }
+  }catch(e){if(e.name==='AbortError')return;}
+  downloadDiretto(pdfUrl,nomeFile);
+  setTimeout(()=>window.open(`https://wa.me/?text=${encodeURIComponent(testo+'\n\n(allegare il PDF scaricato)')}`, '_blank'),800);
+  showToast('PDF scaricato — allegalo su WhatsApp','success');
+}
+
+async function condividiMail(pdfUrl, nomeFile, mailSubj, mailBody){
+  sel('export-modal').classList.add('hidden');
+  try{
+    const res=await fetch(pdfUrl);
+    const blob=await res.blob();
+    const file=new File([blob],nomeFile,{type:'application/pdf'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({title:'ARETE PDF',files:[file]});
+      showToast('PDF condiviso!','success');
+      return;
+    }
+  }catch(e){if(e.name==='AbortError')return;}
+  downloadDiretto(pdfUrl,nomeFile);
+  setTimeout(()=>{window.location.href=`mailto:?subject=${mailSubj}&body=${mailBody}`;},800);
+  showToast('PDF scaricato — allegalo alla mail','success');
+}
+
+function downloadPDFBlob(pdfUrl, nomeFile){
+  sel('export-modal').classList.add('hidden');
+  downloadDiretto(pdfUrl, nomeFile);
+  showToast('PDF scaricato!','success');
+}
+
+function downloadDiretto(pdfUrl, nomeFile){
+  const a=document.createElement('a');
+  a.href=pdfUrl; a.download=nomeFile; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>document.body.removeChild(a),1000);
 }
 
 // ── Funzione generica: genera blob PDF con jsPDF ─────────────────────────────
@@ -1418,98 +1574,35 @@ async function generaPDFBlob(f, nomeFile){
   }
 }
 
-// ── Helper: Blob → Base64 string (senza prefisso data:...) ─────────────────
-function blobToBase64(blob){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = ()=> resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
 // ── Salva blob PDF sul dispositivo ──────────────────────────────────────────
-async function salvaPDFBlob(pdfBlob, nomeFile){
-  const pdfFile = new File([pdfBlob], nomeFile, {type:'application/pdf'});
-
-  // ── METODO 1: Median.co / GoNative — shareFile con base64 ───────────────
-  // Apre il gestore nativo Android (salva, WhatsApp, Mail, Drive…)
-  // Richiede permesso "File Download" attivato nel pannello Median
-  if(window.median && window.median.share && window.median.share.shareFile){
-    try{
-      const b64 = await blobToBase64(pdfBlob);
-      window.median.share.shareFile({
-        base64: b64,
-        filename: nomeFile,
-        mimeType: 'application/pdf'
-      });
-      showToast('✅ PDF pronto per la condivisione!','success');
-      return;
-    }catch(e){}
-  }
-
-  // ── METODO 2: Median legacy — medianDownloadBlobUrl con base64 data URI ──
-  // Alcune versioni più vecchie dell'SDK Median usano questa funzione
+function salvaPDFBlob(pdfBlob, nomeFile){
+  // Median BlobDownloader (APK Median)
   if(typeof medianDownloadBlobUrl==='function'){
     try{
-      const b64 = await blobToBase64(pdfBlob);
-      const dataUri = 'data:application/pdf;base64,' + b64;
-      medianDownloadBlobUrl(dataUri, 'pdf_'+Date.now(), nomeFile);
+      medianDownloadBlobUrl(URL.createObjectURL(pdfBlob),'pdf_'+Date.now(),nomeFile);
       showToast('✅ PDF salvato in Download','success');
       return;
     }catch(e){}
   }
-
-  // ── METODO 3: Web Share API con file — PWA Chrome mobile ────────────────
-  const isTWA = document.referrer.includes('android-app://') ||
-                navigator.userAgent.includes(' wv)');
-  if(!isTWA && navigator.share && navigator.canShare && navigator.canShare({files:[pdfFile]})){
-    try{
-      await navigator.share({
-        title: nomeFile.replace(/\.pdf$/i,''),
-        files: [pdfFile]
-      });
-      showToast('✅ PDF condiviso!','success');
-      return;
-    }catch(e){
-      if(e.name==='AbortError') return;
-    }
-  }
-
-  // ── METODO 4: Base64 Data URI via <a download> ───────────────────────────
-  // Più affidabile dei blob URL in Android WebView
+  // Data URI (Android WebView)
   try{
-    const b64 = await blobToBase64(pdfBlob);
-    const dataUrl = 'data:application/pdf;base64,' + b64;
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = nomeFile;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=> document.body.removeChild(a), 1500);
-    showToast('✅ PDF scaricato!','success');
-    return;
-  }catch(e){}
-
-  // ── METODO 5: Blob URL (browser desktop) ────────────────────────────────
-  try{
-    const url = URL.createObjectURL(pdfBlob);
-    const a = document.createElement('a');
-    a.href = url; a.download = nomeFile; a.style.display = 'none';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
-    showToast('✅ PDF scaricato','success');
-    return;
-  }catch(e){}
-
-  // ── METODO 6: Apri in nuova scheda ───────────────────────────────────────
-  try{
-    const url = URL.createObjectURL(pdfBlob);
-    window.open(url, '_blank');
-    showToast('⚠️ Salva il PDF dalla scheda aperta','warning');
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const a=document.createElement('a');
+      a.href=e.target.result; a.download=nomeFile; a.style.display='none';
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>document.body.removeChild(a),1000);
+      showToast('✅ PDF scaricato','success');
+    };
+    reader.readAsDataURL(pdfBlob);
   }catch(e){
-    showToast('❌ Impossibile salvare il PDF','error');
+    // Blob URL fallback
+    const url=URL.createObjectURL(pdfBlob);
+    const a=document.createElement('a');
+    a.href=url; a.download=nomeFile; a.style.display='none';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+    showToast('✅ PDF scaricato','success');
   }
 }
 
@@ -2036,12 +2129,11 @@ async function exportPDF(id){
   const nomeFile=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
   const nomePulito=nomeFile.replace(/\.pdf$/i,'');
 
-  // Android/APK o qualsiasi contesto con Web Share API: usa jsPDF + condivisione nativa
+  // Android/APK: usa jsPDF e scarica direttamente il .pdf
   // (window.open + print non funziona in WebView Android)
   const isAndroid=/Android/i.test(navigator.userAgent);
   const isMedian=typeof medianDownloadBlobUrl==='function'||!!(window.median);
-  const hasNativeShare=!!(navigator.share&&navigator.canShare);
-  if(isAndroid||isMedian||hasNativeShare){
+  if(isAndroid||isMedian){
     showToast('Generazione PDF…');
     const pdfBlob=await generaPDFBlob(f, nomeFile);
     if(pdfBlob){
