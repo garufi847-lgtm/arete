@@ -930,50 +930,71 @@ async function shareSaved(id){
 
 // ── Dialog scelta condivisione ─────────────────────────────────────────────
 function mostraDialogCondivisione(pdfBlob, nomeFile, titolo, specie, dataVal, idAlb){
+  // Rimuovi dialog precedente se esiste
+  const vecchio=document.getElementById('share-dialog');
+  if(vecchio) vecchio.remove();
+
   const testo=`Scheda ARETE: ${specie}${idAlb?' · ID '+idAlb:''} · ${dataVal} · Utente n° ${N_UTENTE}`;
   const pdfUrl=URL.createObjectURL(pdfBlob);
-  const modal=sel('export-modal');
-  const content=sel('export-modal-content');
-  modal.classList.remove('hidden');
+  setTimeout(()=>URL.revokeObjectURL(pdfUrl), 300000);
 
   const mailSubj=encodeURIComponent(`${titolo} – ${specie} – ${dataVal}`);
   const mailBody=encodeURIComponent(`${testo}\n\nIn allegato la scheda in formato PDF.`);
 
-  content.innerHTML=`
-    <div class="modal-handle"></div>
-    <div class="modal-title">📄 ${nomeFile.replace('.pdf','')}</div>
-    <div class="modal-subtitle">Scegli dove salvare o inviare il PDF</div>
-    <div class="export-options">
-      <div class="export-option" onclick="salvaSuDrive('${pdfUrl}','${nomeFile}')">
-        <div class="export-icon">
-          <svg width="28" height="28" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/>
-            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 11.5z" fill="#ea4335"/>
-            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-          </svg>
+  // Crea overlay dedicato — non riusa export-modal per evitare conflitti
+  const overlay=document.createElement('div');
+  overlay.id='share-dialog';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:5000;display:flex;align-items:flex-end;justify-content:center;padding:0 0 env(safe-area-inset-bottom,0)';
+  overlay.onclick=e=>{if(e.target===overlay){overlay.remove();URL.revokeObjectURL(pdfUrl);}};
+
+  overlay.innerHTML=`
+    <div style="background:var(--surface,#fff);border-radius:20px 20px 0 0;padding:20px 16px 28px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:0 -4px 32px rgba(0,0,0,.18)">
+      <div style="width:36px;height:4px;background:#ccc;border-radius:2px;margin:0 auto 16px"></div>
+      <div style="font-size:17px;font-weight:700;color:var(--forest,#1a2e1a);margin-bottom:4px">📄 ${nomeFile.replace('.pdf','')}</div>
+      <div style="font-size:13px;color:#888;margin-bottom:18px">Scegli dove salvare o inviare il PDF</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <div onclick="salvaSuDrive('${pdfUrl}','${nomeFile}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
+          <div style="width:44px;text-align:center;flex-shrink:0">
+            <svg width="32" height="28" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+              <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+              <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/>
+              <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 11.5z" fill="#ea4335"/>
+              <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+              <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+              <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+            </svg>
+          </div>
+          <div><div style="font-size:14px;font-weight:600">Salva su Google Drive</div><div style="font-size:12px;color:#888">Carica il PDF nel tuo Drive</div></div>
         </div>
-        <div class="export-info"><h4>Salva su Google Drive</h4><p>Carica il PDF nel tuo Drive</p></div>
-      </div>
-      <div class="export-option" onclick="condividiWhatsApp('${pdfUrl}','${nomeFile}','${testo.replace(/'/g,"\\'")}')">
-        <div class="export-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.554 4.1 1.523 5.824L.057 23.8a.5.5 0 00.614.658l6.142-1.612A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.001-1.371l-.357-.213-3.705.972.989-3.614-.233-.372A9.784 9.784 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+
+        <div onclick="condividiWhatsApp('${pdfUrl}','${nomeFile}','${testo.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
+          <div style="width:44px;text-align:center;flex-shrink:0">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.554 4.1 1.523 5.824L.057 23.8a.5.5 0 00.614.658l6.142-1.612A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.001-1.371l-.357-.213-3.705.972.989-3.614-.233-.372A9.784 9.784 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
+          </div>
+          <div><div style="font-size:14px;font-weight:600">Invia su WhatsApp</div><div style="font-size:12px;color:#888">Condividi il PDF via WhatsApp</div></div>
         </div>
-        <div class="export-info"><h4>Invia su WhatsApp</h4><p>Condividi il PDF via WhatsApp</p></div>
-      </div>
-      <div class="export-option" onclick="condividiMail('${pdfUrl}','${nomeFile}','${mailSubj}','${mailBody}')">
-        <div class="export-icon" style="font-size:28px">📧</div>
-        <div class="export-info"><h4>Invia per Mail</h4><p>Allega il PDF a un'email</p></div>
-      </div>
-      <div class="export-option" onclick="downloadPDFBlob('${pdfUrl}','${nomeFile}')">
-        <div class="export-icon" style="font-size:28px">⬇️</div>
-        <div class="export-info"><h4>Scarica PDF</h4><p>Salva il PDF sul dispositivo</p></div>
+
+        <div onclick="condividiMail('${pdfUrl}','${nomeFile}','${mailSubj}','${mailBody}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
+          <div style="width:44px;text-align:center;font-size:30px;flex-shrink:0">📧</div>
+          <div><div style="font-size:14px;font-weight:600">Invia per Mail</div><div style="font-size:12px;color:#888">Allega il PDF a un'email</div></div>
+        </div>
+
+        <div onclick="downloadPDFBlob('${pdfUrl}','${nomeFile}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
+          <div style="width:44px;text-align:center;font-size:30px;flex-shrink:0">⬇️</div>
+          <div><div style="font-size:14px;font-weight:600">Scarica PDF</div><div style="font-size:12px;color:#888">Salva il PDF sul dispositivo</div></div>
+        </div>
+
       </div>
     </div>`;
 
-  setTimeout(()=>URL.revokeObjectURL(pdfUrl), 300000);
+  document.body.appendChild(overlay);
+
+  // Aggiunge funzione chiusura accessibile dalle sotto-funzioni
+  window._closeShareDialog=()=>{
+    const d=document.getElementById('share-dialog');
+    if(d) d.remove();
+  };
 }
 
 // ── Google Drive upload ────────────────────────────────────────────────────
@@ -1013,7 +1034,7 @@ async function getDriveToken(){
 }
 
 async function salvaSuDrive(pdfUrl, nomeFile){
-  sel('export-modal').classList.add('hidden');
+  if(window._closeShareDialog) window._closeShareDialog();
   showToast('Connessione Google Drive…');
   const token=await getDriveToken();
   if(!token){showToast('Accesso Drive non riuscito','error');downloadDiretto(pdfUrl,nomeFile);return;}
@@ -1040,7 +1061,7 @@ async function salvaSuDrive(pdfUrl, nomeFile){
 }
 
 async function condividiWhatsApp(pdfUrl, nomeFile, testo){
-  sel('export-modal').classList.add('hidden');
+  if(window._closeShareDialog) window._closeShareDialog();
   try{
     const res=await fetch(pdfUrl);
     const blob=await res.blob();
@@ -1057,7 +1078,7 @@ async function condividiWhatsApp(pdfUrl, nomeFile, testo){
 }
 
 async function condividiMail(pdfUrl, nomeFile, mailSubj, mailBody){
-  sel('export-modal').classList.add('hidden');
+  if(window._closeShareDialog) window._closeShareDialog();
   try{
     const res=await fetch(pdfUrl);
     const blob=await res.blob();
@@ -1074,7 +1095,7 @@ async function condividiMail(pdfUrl, nomeFile, mailSubj, mailBody){
 }
 
 function downloadPDFBlob(pdfUrl, nomeFile){
-  sel('export-modal').classList.add('hidden');
+  if(window._closeShareDialog) window._closeShareDialog();
   downloadDiretto(pdfUrl, nomeFile);
   showToast('PDF scaricato!','success');
 }
