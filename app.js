@@ -1129,7 +1129,35 @@ async function shareSaved(id){
     row4mis([['D br (cm)',d.d_branca],['L br (m)',d.l_branca],['H br (m)',d.h_branca],['H bers (m)',d.h_bersaglio]]);
     row4mis([['Bio (kg)',bio?fmtN(bio,0):'—'],['CO\u2082 (kg/a)',co2?fmtN(co2,0):'—'],['O\u2082 (kg/a)',o2?fmtN(o2,0):'—'],['I.A. (kg/a)',ia?fmtN(ia,0):'—']]);
 
-    // ── DIAGNOSI ─────────────────────────────────────────────────────────────
+    // ── Valore ecologico e Valore complessivo (TRG-S e ORD) ─────────────────
+    if(f.type==='trgs'||f.type==='ord'){
+      const ve=calcValoreEcologico(bio,co2,o2,ia);
+      const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
+      if(ve!==null){
+        checkY(18);
+        const hw=CW/2;
+        // Valore ecologico — sfondo verde
+        doc.setFillColor(232,245,233);
+        doc.rect(ML,Y,hw,18,'F');
+        doc.setDrawColor(129,199,132);
+        doc.rect(ML,Y,hw,18,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(46,125,50);
+        doc.text('VALORE ECOLOGICO',ML+4,Y+6);
+        doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(27,94,32);
+        doc.text(fmtEuro(ve),ML+4,Y+15);
+        // Valore complessivo — sfondo blu
+        doc.setFillColor(227,242,253);
+        doc.rect(ML+hw,Y,hw,18,'F');
+        doc.setDrawColor(144,202,249);
+        doc.rect(ML+hw,Y,hw,18,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(21,101,192);
+        doc.text('VALORE COMPLESSIVO',ML+hw+4,Y+6);
+        doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(13,71,161);
+        doc.text(fmtEuro(vc),ML+hw+4,Y+15);
+        doc.setTextColor(0,0,0);doc.setDrawColor(170,170,170);
+        Y+=20;
+      }
+    }
     sezione('Diagnosi', VERDE_M);
     row1('Condiz. Salute e Vigoria',d.condiz_salute,100);
     row2('Fitopatia',d.fitopatia,'Agente Cariogeno',d.agente_cariogeno,60);
