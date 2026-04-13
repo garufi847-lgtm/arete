@@ -926,15 +926,7 @@ async function shareSaved(id){
   const titolo=`ARETE – ${tlabels[f.type]||f.type.toUpperCase()}`;
   const pdfFile=new File([pdfBlob],nomeFile,{type:'application/pdf'});
 
-  // Web Share API con file PDF (mobile)
-  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[pdfFile]})){
-    try{
-      await navigator.share({title:titolo,text:`Scheda ARETE: ${specie}${idAlb?' · ID '+idAlb:''} · ${dataVal} · Utente n° ${N_UTENTE}`,files:[pdfFile]});
-      showToast('PDF condiviso!','success');
-      return;
-    }catch(e){if(e.name==='AbortError')return;}
-  }
-  // Fallback download
+  // Salva/condividi PDF — usa la funzione unificata che gestisce PWA e APK/TWA
   salvaPDFBlob(pdfBlob, nomeFile);
 }
 
@@ -1427,8 +1419,31 @@ async function generaPDFBlob(f, nomeFile){
 }
 
 // ── Salva blob PDF sul dispositivo ──────────────────────────────────────────
-function salvaPDFBlob(pdfBlob, nomeFile){
-  // Median BlobDownloader (APK Median)
+async function salvaPDFBlob(pdfBlob, nomeFile){
+  const pdfFile = new File([pdfBlob], nomeFile, {type:'application/pdf'});
+
+  // 1. Web Share API con file — funziona su PWA/Chrome mobile
+  //    Nelle TWA/APK (Trusted Web Activity) navigator.share è spesso undefined
+  //    o canShare({files}) ritorna false → saltiamo al metodo successivo
+  const isTWA = document.referrer.includes('android-app://') ||
+                navigator.userAgent.includes('wv') ||
+                window.matchMedia('(display-mode: standalone)').matches && !navigator.share;
+
+  if(!isTWA && navigator.share && navigator.canShare && navigator.canShare({files:[pdfFile]})){
+    try{
+      await navigator.share({
+        title: nomeFile.replace(/\.pdf$/i,''),
+        files: [pdfFile]
+      });
+      showToast('✅ PDF condiviso!','success');
+      return;
+    }catch(e){
+      if(e.name==='AbortError') return;
+      // Share API fallita → continua
+    }
+  }
+
+  // 2. Median / GoNative BlobDownloader (APK generati con Median.co)
   if(typeof medianDownloadBlobUrl==='function'){
     try{
       medianDownloadBlobUrl(URL.createObjectURL(pdfBlob),'pdf_'+Date.now(),nomeFile);
@@ -1436,25 +1451,48 @@ function salvaPDFBlob(pdfBlob, nomeFile){
       return;
     }catch(e){}
   }
-  // Data URI (Android WebView)
+
+  // 3. Base64 Data URI via <a download> — metodo più affidabile in Android WebView
+  //    (i blob URL vengono spesso bloccati nelle TWA, i data URI no)
   try{
-    const reader=new FileReader();
-    reader.onload=function(e){
-      const a=document.createElement('a');
-      a.href=e.target.result; a.download=nomeFile; a.style.display='none';
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>document.body.removeChild(a),1000);
-      showToast('✅ PDF scaricato','success');
-    };
-    reader.readAsDataURL(pdfBlob);
-  }catch(e){
-    // Blob URL fallback
-    const url=URL.createObjectURL(pdfBlob);
-    const a=document.createElement('a');
-    a.href=url; a.download=nomeFile; a.style.display='none';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(pdfBlob);
+    });
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = nomeFile;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 1500);
+    showToast('✅ PDF salvato!','success');
+    return;
+  }catch(e){}
+
+  // 4. Blob URL fallback (browser desktop e alcuni mobile)
+  try{
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeFile;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
     showToast('✅ PDF scaricato','success');
+    return;
+  }catch(e){}
+
+  // 5. Ultimo tentativo: apri il PDF in una nuova scheda (l'utente può salvarlo manualmente)
+  try{
+    const url = URL.createObjectURL(pdfBlob);
+    window.open(url, '_blank');
+    showToast('⚠️ Salva il PDF dalla scheda aperta','warning');
+  }catch(e){
+    showToast('❌ Impossibile salvare il PDF','error');
   }
 }
 
@@ -1981,11 +2019,12 @@ async function exportPDF(id){
   const nomeFile=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
   const nomePulito=nomeFile.replace(/\.pdf$/i,'');
 
-  // Android/APK: usa jsPDF e scarica direttamente il .pdf
+  // Android/APK o qualsiasi contesto con Web Share API: usa jsPDF + condivisione nativa
   // (window.open + print non funziona in WebView Android)
   const isAndroid=/Android/i.test(navigator.userAgent);
   const isMedian=typeof medianDownloadBlobUrl==='function'||!!(window.median);
-  if(isAndroid||isMedian){
+  const hasNativeShare=!!(navigator.share&&navigator.canShare);
+  if(isAndroid||isMedian||hasNativeShare){
     showToast('Generazione PDF…');
     const pdfBlob=await generaPDFBlob(f, nomeFile);
     if(pdfBlob){
