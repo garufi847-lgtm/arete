@@ -913,23 +913,45 @@ async function shareSaved(id){
   const specie=(d.specie||'').split(' - ')[0]||'';
   const dataVal=d.data||f.savedAt.split('T')[0];
   const idAlb=d.id_albero||'';
-  const titolo=`ARETE – ${tlabels[f.type]||f.type.toUpperCase()}`;
-  const nomeFile=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}.pdf`;
+  const nomeSuggerito=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}`;
+
+  const nomeInput=prompt('Nome del file PDF:', nomeSuggerito);
+  if(nomeInput===null) return;
+  const nomeFile=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
 
   showToast('Generazione PDF…');
+  const pdfBlob=await generaPDFBlob(f, nomeFile);
+  if(!pdfBlob){ exportPDF(id); return; }
 
-  // Carica jsPDF se non presente
-  if(!window.jspdf){
-    await new Promise((res,rej)=>{
-      const s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      s.onload=res; s.onerror=rej;
-      document.head.appendChild(s);
-    });
+  const titolo=`ARETE – ${tlabels[f.type]||f.type.toUpperCase()}`;
+  const pdfFile=new File([pdfBlob],nomeFile,{type:'application/pdf'});
+
+  // Web Share API con file PDF (mobile)
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[pdfFile]})){
+    try{
+      await navigator.share({title:titolo,text:`Scheda ARETE: ${specie}${idAlb?' · ID '+idAlb:''} · ${dataVal} · Utente n° ${N_UTENTE}`,files:[pdfFile]});
+      showToast('PDF condiviso!','success');
+      return;
+    }catch(e){if(e.name==='AbortError')return;}
   }
+  // Fallback download
+  salvaPDFBlob(pdfBlob, nomeFile);
+}
 
+// ── Funzione generica: genera blob PDF con jsPDF ─────────────────────────────
+async function generaPDFBlob(f, nomeFile){
+  if(!window.jspdf){
+    try{
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload=res; s.onerror=rej;
+        document.head.appendChild(s);
+      });
+    }catch(e){return null;}
+  }
   try{
-    const {jsPDF}=window.jspdf;
+   const {jsPDF}=window.jspdf;
     const doc=new jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
     // A4 in pt: 595.28 x 841.89
     const PW=595.28, PH=841.89;
@@ -1397,35 +1419,42 @@ async function shareSaved(id){
       doc.text(`ARETE – ${titolo} – Utente n° ${N_UTENTE}  |  Pag. ${p}/${nPages}  |  ${new Date().toLocaleString('it-IT')}`,PW/2,PH-8,{align:'center'});
     }
 
-    // ── CONDIVISIONE ────────────────────────────────────────────────────────
-    const pdfBlob=doc.output('blob');
-    const pdfFile=new File([pdfBlob],nomeFile,{type:'application/pdf'});
+    return doc.output('blob');
+  }catch(err){
+    console.error('jsPDF error:',err);
+    return null;
+  }
+}
 
-    if(navigator.share && navigator.canShare && navigator.canShare({files:[pdfFile]})){
-      try{
-        await navigator.share({
-          title:titolo,
-          text:`Scheda ARETE: ${specie}${idAlb?' · ID '+idAlb:''} · ${dataVal} · Utente n° ${N_UTENTE}`,
-          files:[pdfFile]
-        });
-        showToast('PDF condiviso!','success');
-        return;
-      } catch(e){
-        if(e.name==='AbortError') return;
-      }
-    }
-
-    // Fallback: scarica
+// ── Salva blob PDF sul dispositivo ──────────────────────────────────────────
+function salvaPDFBlob(pdfBlob, nomeFile){
+  // Median BlobDownloader (APK Median)
+  if(typeof medianDownloadBlobUrl==='function'){
+    try{
+      medianDownloadBlobUrl(URL.createObjectURL(pdfBlob),'pdf_'+Date.now(),nomeFile);
+      showToast('✅ PDF salvato in Download','success');
+      return;
+    }catch(e){}
+  }
+  // Data URI (Android WebView)
+  try{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const a=document.createElement('a');
+      a.href=e.target.result; a.download=nomeFile; a.style.display='none';
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>document.body.removeChild(a),1000);
+      showToast('✅ PDF scaricato','success');
+    };
+    reader.readAsDataURL(pdfBlob);
+  }catch(e){
+    // Blob URL fallback
     const url=URL.createObjectURL(pdfBlob);
     const a=document.createElement('a');
-    a.href=url; a.download=nomeFile; a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),3000);
-    showToast('PDF scaricato — allegalo su WhatsApp o Mail','success');
-
-  } catch(err){
-    console.error('jsPDF error:',err);
-    exportPDF(id);
-    showToast('PDF aperto — Stampa → Salva come PDF','');
+    a.href=url; a.download=nomeFile; a.style.display='none';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
+    showToast('✅ PDF scaricato','success');
   }
 }
 
@@ -1940,7 +1969,7 @@ function buildPDF(f){
   </div></body></html>`;
 }
 
-function exportPDF(id){
+async function exportPDF(id){
   const f=savedForms.find(x=>x.id===id);if(!f)return;
   sel('export-modal').classList.add('hidden');
   const specie=(f.data.specie||'').split(' - ')[0]||'';
@@ -1949,9 +1978,31 @@ function exportPDF(id){
   const nomeSuggerito=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}`;
   const nomeInput=prompt('Nome del file PDF:', nomeSuggerito);
   if(nomeInput===null) return;
-  const nomePulito=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_');
+  const nomeFile=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
+  const nomePulito=nomeFile.replace(/\.pdf$/i,'');
+
+  // Android/APK: usa jsPDF e scarica direttamente il .pdf
+  // (window.open + print non funziona in WebView Android)
+  const isAndroid=/Android/i.test(navigator.userAgent);
+  const isMedian=typeof medianDownloadBlobUrl==='function'||!!(window.median);
+  if(isAndroid||isMedian){
+    showToast('Generazione PDF…');
+    const pdfBlob=await generaPDFBlob(f, nomeFile);
+    if(pdfBlob){
+      salvaPDFBlob(pdfBlob, nomeFile);
+      return;
+    }
+  }
+
+  // Desktop/iOS: apri HTML con pulsante stampa
   const w=window.open('','_blank');
-  if(!w){showToast('Consenti i popup nel browser','error');return;}
+  if(!w){
+    // Popup bloccato — fallback jsPDF
+    showToast('Generazione PDF…');
+    const pdfBlob=await generaPDFBlob(f, nomeFile);
+    if(pdfBlob){ salvaPDFBlob(pdfBlob, nomeFile); return; }
+    showToast('Consenti i popup nel browser','error'); return;
+  }
   const html=buildPDF(f)
     .replace(/onclick="window\.print\(\)"/,`onclick="document.title='${nomePulito}';window.print()"`)
     .replace('<title>ARETE',`<title>${nomePulito}`);
