@@ -1418,17 +1418,51 @@ async function generaPDFBlob(f, nomeFile){
   }
 }
 
+// ── Helper: Blob → Base64 string (senza prefisso data:...) ─────────────────
+function blobToBase64(blob){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 // ── Salva blob PDF sul dispositivo ──────────────────────────────────────────
 async function salvaPDFBlob(pdfBlob, nomeFile){
   const pdfFile = new File([pdfBlob], nomeFile, {type:'application/pdf'});
 
-  // 1. Web Share API con file — funziona su PWA/Chrome mobile
-  //    Nelle TWA/APK (Trusted Web Activity) navigator.share è spesso undefined
-  //    o canShare({files}) ritorna false → saltiamo al metodo successivo
-  const isTWA = document.referrer.includes('android-app://') ||
-                navigator.userAgent.includes('wv') ||
-                window.matchMedia('(display-mode: standalone)').matches && !navigator.share;
+  // ── METODO 1: Median.co / GoNative — shareFile con base64 ───────────────
+  // Apre il gestore nativo Android (salva, WhatsApp, Mail, Drive…)
+  // Richiede permesso "File Download" attivato nel pannello Median
+  if(window.median && window.median.share && window.median.share.shareFile){
+    try{
+      const b64 = await blobToBase64(pdfBlob);
+      window.median.share.shareFile({
+        base64: b64,
+        filename: nomeFile,
+        mimeType: 'application/pdf'
+      });
+      showToast('✅ PDF pronto per la condivisione!','success');
+      return;
+    }catch(e){}
+  }
 
+  // ── METODO 2: Median legacy — medianDownloadBlobUrl con base64 data URI ──
+  // Alcune versioni più vecchie dell'SDK Median usano questa funzione
+  if(typeof medianDownloadBlobUrl==='function'){
+    try{
+      const b64 = await blobToBase64(pdfBlob);
+      const dataUri = 'data:application/pdf;base64,' + b64;
+      medianDownloadBlobUrl(dataUri, 'pdf_'+Date.now(), nomeFile);
+      showToast('✅ PDF salvato in Download','success');
+      return;
+    }catch(e){}
+  }
+
+  // ── METODO 3: Web Share API con file — PWA Chrome mobile ────────────────
+  const isTWA = document.referrer.includes('android-app://') ||
+                navigator.userAgent.includes(' wv)');
   if(!isTWA && navigator.share && navigator.canShare && navigator.canShare({files:[pdfFile]})){
     try{
       await navigator.share({
@@ -1439,54 +1473,37 @@ async function salvaPDFBlob(pdfBlob, nomeFile){
       return;
     }catch(e){
       if(e.name==='AbortError') return;
-      // Share API fallita → continua
     }
   }
 
-  // 2. Median / GoNative BlobDownloader (APK generati con Median.co)
-  if(typeof medianDownloadBlobUrl==='function'){
-    try{
-      medianDownloadBlobUrl(URL.createObjectURL(pdfBlob),'pdf_'+Date.now(),nomeFile);
-      showToast('✅ PDF salvato in Download','success');
-      return;
-    }catch(e){}
-  }
-
-  // 3. Base64 Data URI via <a download> — metodo più affidabile in Android WebView
-  //    (i blob URL vengono spesso bloccati nelle TWA, i data URI no)
+  // ── METODO 4: Base64 Data URI via <a download> ───────────────────────────
+  // Più affidabile dei blob URL in Android WebView
   try{
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(pdfBlob);
-    });
+    const b64 = await blobToBase64(pdfBlob);
+    const dataUrl = 'data:application/pdf;base64,' + b64;
     const a = document.createElement('a');
     a.href = dataUrl;
     a.download = nomeFile;
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => document.body.removeChild(a), 1500);
-    showToast('✅ PDF salvato!','success');
+    setTimeout(()=> document.body.removeChild(a), 1500);
+    showToast('✅ PDF scaricato!','success');
     return;
   }catch(e){}
 
-  // 4. Blob URL fallback (browser desktop e alcuni mobile)
+  // ── METODO 5: Blob URL (browser desktop) ────────────────────────────────
   try{
     const url = URL.createObjectURL(pdfBlob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = nomeFile;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+    a.href = url; a.download = nomeFile; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
     showToast('✅ PDF scaricato','success');
     return;
   }catch(e){}
 
-  // 5. Ultimo tentativo: apri il PDF in una nuova scheda (l'utente può salvarlo manualmente)
+  // ── METODO 6: Apri in nuova scheda ───────────────────────────────────────
   try{
     const url = URL.createObjectURL(pdfBlob);
     window.open(url, '_blank');
