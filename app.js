@@ -249,35 +249,21 @@ function fmtN(v,dec=1){
   return parseFloat(v).toFixed(dec);
 }
 
-// ===== VALORE ECOLOGICO E COMPLESSIVO (da foglio A — TRG-S e ORD) =====
-// Valore Ecologico: D10 = G10*BM19 + J10*BM20 + M10*BM21 + O10*BM22
-// Coefficienti da foglio A: BM19=0.55, BM20=1, BM21=5, BM22=10
-// = Bio(kg)*0.55 + CO2(kg/anno)*1 + O2(kg/anno)*5 + I.A.(kg/anno)*10
-function calcValoreEcologico(bio, co2, o2, ia) {
+// ===== VALORE ECOLOGICO E COMPLESSIVO =====
+// Formula da Excel: D10 = Bio*0.55 + CO2*1 + O2*5 + IA*10
+function calcValoreEcologico(bio,co2,o2,ia){
   if(bio===null||co2===null||o2===null||ia===null) return null;
-  return bio*0.55 + co2*1 + o2*5 + ia*10;
+  return bio*0.55+co2*1+o2*5+ia*10;
 }
-
-// Valore Complessivo: S10 = D10 + AE12
-// AE12 = Valore Ornamentale Deprezzato
-// Il valore ornamentale dipende da lookup specie × curva logistica per altezza
-// Approssimazione con formula: val_orn = bio * 2.5 (coefficiente medio da tabella)
-// Valore Complessivo = Valore Ecologico + Valore Ornamentale Deprezzato
-function calcValoreComplessivo(valEcol, bio, condizSalute) {
-  if(valEcol===null||bio===null) return null;
-  // Valore ornamentale deprezzato ≈ Bio * 2.5 * (1 - deprez)
-  // Il deprezzamento dipende dalle condizioni di salute (0-100%)
-  // Dalla tabella AT35:AU45: condizione 1→0%, 11→100%
-  const condizIndex = condizSalute ? DATA.condizSalute.indexOf(condizSalute) : 0;
-  const deprez = condizIndex >= 0 ? condizIndex * 10 : 0; // 0-100%
-  const valOrnamentale = bio * 2.5 * (1 - deprez/100);
-  return valEcol + Math.max(0, valOrnamentale);
+function calcValoreComplessivo(ve,bio,condiz){
+  if(ve===null||bio===null) return null;
+  const idx=condiz?DATA.condizSalute.indexOf(condiz):0;
+  const dep=idx>=0?idx*10:0;
+  return ve+Math.max(0,bio*2.5*(1-dep/100));
 }
-
-// Formatta valore monetario in €
-function fmtEuro(v) {
+function fmtEuro(v){
   if(v===null||v===undefined||isNaN(v)) return '—';
-  return '€ ' + Math.round(v).toLocaleString('it-IT');
+  return '€ '+Math.round(v).toLocaleString('it-IT');
 }
 
 // ===== STATE =====
@@ -316,9 +302,8 @@ function buildMisureSection(d, ft, hasEco) {
   const cls_alb = classeImpulso(imp_alb);
   const cls_ram = classeImpulso(imp_ram);
 
-  const ve = calcValoreEcologico(bio,co2,o2,ia);
-  const vc = calcValoreComplessivo(ve,bio,d.condiz_salute);
-
+  const ve=calcValoreEcologico(bio,co2,o2,ia);
+  const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
   const ecoBar = hasEco ? `
     <div class="eco-bar">
       <div class="eco-item"><span class="eco-label">Bio <small>(kg)</small></span><span class="eco-val" id="bio-${ft}">${bio?fmtN(bio,0):'—'}</span></div>
@@ -328,14 +313,14 @@ function buildMisureSection(d, ft, hasEco) {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
       <div style="background:#e8f5e9;border:1.5px solid #81c784;border-radius:10px;padding:10px 14px">
-        <div style="font-size:11px;font-weight:600;color:#2e7d32;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">🌿 Valore ecologico</div>
-        <div style="font-size:20px;font-weight:700;color:#1b5e20;font-family:'DM Mono',monospace" id="val-ecol-${ft}">${fmtEuro(ve)}</div>
-        <div style="font-size:10px;color:#4caf50;margin-top:2px">Bio×0.55 + CO₂ + O₂×5 + I.A.×10</div>
+        <div style="font-size:11px;font-weight:600;color:#2e7d32;text-transform:uppercase;margin-bottom:4px">Valore ecologico</div>
+        <div style="font-size:18px;font-weight:700;color:#1b5e20;font-family:'DM Mono',monospace" id="val-ecol-${ft}">${fmtEuro(ve)}</div>
+        <div style="font-size:10px;color:#4caf50;margin-top:2px">Bio×0.55+CO₂+O₂×5+I.A.×10</div>
       </div>
       <div style="background:#e3f2fd;border:1.5px solid #90caf9;border-radius:10px;padding:10px 14px">
-        <div style="font-size:11px;font-weight:600;color:#1565c0;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">💰 Valore complessivo</div>
-        <div style="font-size:20px;font-weight:700;color:#0d47a1;font-family:'DM Mono',monospace" id="val-comp-${ft}">${fmtEuro(vc)}</div>
-        <div style="font-size:10px;color:#64b5f6;margin-top:2px">Val. ecologico + Val. ornamentale</div>
+        <div style="font-size:11px;font-weight:600;color:#1565c0;text-transform:uppercase;margin-bottom:4px">Valore complessivo</div>
+        <div style="font-size:18px;font-weight:700;color:#0d47a1;font-family:'DM Mono',monospace" id="val-comp-${ft}">${fmtEuro(vc)}</div>
+        <div style="font-size:10px;color:#64b5f6;margin-top:2px">Val.ecol.+Val.ornamentale</div>
       </div>
     </div>` : '';
 
@@ -447,7 +432,6 @@ function updateComputed(ft){
   const ia_el=sel('cls-alb-'+ft); if(ia_el) ia_el.textContent=classeImpulso(imp_alb);
   const ir_el=sel('cls-ram-'+ft); if(ir_el) ir_el.textContent=classeImpulso(imp_ram);
   const rEl=sel('result-'+ft); if(rEl) rEl.innerHTML=riskHTML(ft);
-  // Valore ecologico e complessivo (solo TRG-S e ORD)
   if(ft==='trgs'||ft==='ord'){
     const ve=calcValoreEcologico(bio,co2,o2,ia);
     const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
@@ -914,213 +898,22 @@ async function shareSaved(id){
   const dataVal=d.data||f.savedAt.split('T')[0];
   const idAlb=d.id_albero||'';
   const titolo=`ARETE – ${tlabels[f.type]||f.type.toUpperCase()}`;
-  const nomeSuggerito=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}`;
-
-  const nomeInput=prompt('Nome del file PDF:', nomeSuggerito);
-  if(nomeInput===null) return;
-  const nomeFile=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
+  const nomeFile=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}.pdf`;
 
   showToast('Generazione PDF…');
-  const pdfBlob=await generaPDFBlob(f, nomeFile);
-  if(!pdfBlob){ exportPDF(id); return; }
 
-  // Mostra dialog con tutte le opzioni: Drive, WhatsApp, Mail, Scarica
-  mostraDialogCondivisione(pdfBlob, nomeFile, titolo, specie, dataVal, idAlb);
-}
-
-// ── Dialog scelta condivisione ─────────────────────────────────────────────
-function mostraDialogCondivisione(pdfBlob, nomeFile, titolo, specie, dataVal, idAlb){
-  // Rimuovi dialog precedente se esiste
-  const vecchio=document.getElementById('share-dialog');
-  if(vecchio) vecchio.remove();
-
-  const testo=`Scheda ARETE: ${specie}${idAlb?' · ID '+idAlb:''} · ${dataVal} · Utente n° ${N_UTENTE}`;
-  const pdfUrl=URL.createObjectURL(pdfBlob);
-  setTimeout(()=>URL.revokeObjectURL(pdfUrl), 300000);
-
-  const mailSubj=encodeURIComponent(`${titolo} – ${specie} – ${dataVal}`);
-  const mailBody=encodeURIComponent(`${testo}\n\nIn allegato la scheda in formato PDF.`);
-
-  // Crea overlay dedicato — non riusa export-modal per evitare conflitti
-  const overlay=document.createElement('div');
-  overlay.id='share-dialog';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:5000;display:flex;align-items:flex-end;justify-content:center;padding:0 0 env(safe-area-inset-bottom,0)';
-  overlay.onclick=e=>{if(e.target===overlay){overlay.remove();URL.revokeObjectURL(pdfUrl);}};
-
-  overlay.innerHTML=`
-    <div style="background:var(--surface,#fff);border-radius:20px 20px 0 0;padding:20px 16px 28px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:0 -4px 32px rgba(0,0,0,.18)">
-      <div style="width:36px;height:4px;background:#ccc;border-radius:2px;margin:0 auto 16px"></div>
-      <div style="font-size:17px;font-weight:700;color:var(--forest,#1a2e1a);margin-bottom:4px">📄 ${nomeFile.replace('.pdf','')}</div>
-      <div style="font-size:13px;color:#888;margin-bottom:18px">Scegli dove salvare o inviare il PDF</div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-
-        <div onclick="salvaSuDrive('${pdfUrl}','${nomeFile}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
-          <div style="width:44px;text-align:center;flex-shrink:0">
-            <svg width="32" height="28" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
-              <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
-              <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/>
-              <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 11.5z" fill="#ea4335"/>
-              <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
-              <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
-              <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
-            </svg>
-          </div>
-          <div><div style="font-size:14px;font-weight:600">Salva su Google Drive</div><div style="font-size:12px;color:#888">Carica il PDF nel tuo Drive</div></div>
-        </div>
-
-        <div onclick="condividiWhatsApp('${pdfUrl}','${nomeFile}','${testo.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
-          <div style="width:44px;text-align:center;flex-shrink:0">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.554 4.1 1.523 5.824L.057 23.8a.5.5 0 00.614.658l6.142-1.612A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.001-1.371l-.357-.213-3.705.972.989-3.614-.233-.372A9.784 9.784 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>
-          </div>
-          <div><div style="font-size:14px;font-weight:600">Invia su WhatsApp</div><div style="font-size:12px;color:#888">Condividi il PDF via WhatsApp</div></div>
-        </div>
-
-        <div onclick="condividiMail('${pdfUrl}','${nomeFile}','${mailSubj}','${mailBody}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
-          <div style="width:44px;text-align:center;font-size:30px;flex-shrink:0">📧</div>
-          <div><div style="font-size:14px;font-weight:600">Invia per Mail</div><div style="font-size:12px;color:#888">Allega il PDF a un'email</div></div>
-        </div>
-
-        <div onclick="downloadPDFBlob('${pdfUrl}','${nomeFile}')" style="display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #e0e0e0;border-radius:12px;cursor:pointer;background:#fff">
-          <div style="width:44px;text-align:center;font-size:30px;flex-shrink:0">⬇️</div>
-          <div><div style="font-size:14px;font-weight:600">Scarica PDF</div><div style="font-size:12px;color:#888">Salva il PDF sul dispositivo</div></div>
-        </div>
-
-      </div>
-    </div>`;
-
-  document.body.appendChild(overlay);
-
-  // Aggiunge funzione chiusura accessibile dalle sotto-funzioni
-  window._closeShareDialog=()=>{
-    const d=document.getElementById('share-dialog');
-    if(d) d.remove();
-  };
-}
-
-// ── Google Drive upload ────────────────────────────────────────────────────
-let _driveToken=null, _driveTokenExpiry=0;
-async function getDriveToken(){
-  if(_driveToken&&Date.now()<_driveTokenExpiry-60000) return _driveToken;
-  let cid=localStorage.getItem('arete_gcid')||'';
-  if(!cid){
-    cid=prompt('Client ID Google OAuth2\n(console.cloud.google.com → Credenziali → OAuth 2.0):','');
-    if(!cid) return null;
-    localStorage.setItem('arete_gcid',cid.trim());
-  }
-  return new Promise(resolve=>{
-    const doAuth=()=>{
-      try{
-        const client=google.accounts.oauth2.initTokenClient({
-          client_id:cid.trim(),
-          scope:'https://www.googleapis.com/auth/drive.file',
-          callback:(resp)=>{
-            if(resp.error||!resp.access_token){resolve(null);return;}
-            _driveToken=resp.access_token;
-            _driveTokenExpiry=Date.now()+resp.expires_in*1000;
-            resolve(_driveToken);
-          }
-        });
-        client.requestAccessToken({prompt:''});
-      }catch(e){resolve(null);}
-    };
-    if(window.google&&google.accounts){doAuth();}
-    else{
-      const s=document.createElement('script');
-      s.src='https://accounts.google.com/gsi/client';
-      s.onload=doAuth; s.onerror=()=>resolve(null);
-      document.head.appendChild(s);
-    }
-  });
-}
-
-async function salvaSuDrive(pdfUrl, nomeFile){
-  if(window._closeShareDialog) window._closeShareDialog();
-  showToast('Connessione Google Drive…');
-  const token=await getDriveToken();
-  if(!token){showToast('Accesso Drive non riuscito','error');downloadDiretto(pdfUrl,nomeFile);return;}
-  showToast('Caricamento su Drive…');
-  try{
-    const res=await fetch(pdfUrl);
-    const blob=await res.blob();
-    const meta=JSON.stringify({name:nomeFile,mimeType:'application/pdf'});
-    const form=new FormData();
-    form.append('metadata',new Blob([meta],{type:'application/json'}));
-    form.append('file',new File([blob],nomeFile,{type:'application/pdf'}));
-    const up=await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
-      {method:'POST',headers:{'Authorization':'Bearer '+token},body:form}
-    );
-    if(!up.ok) throw new Error('HTTP '+up.status);
-    const result=await up.json();
-    showToast('✅ Salvato su Google Drive!','success');
-    if(result.webViewLink) setTimeout(()=>window.open(result.webViewLink,'_blank'),1500);
-  }catch(err){
-    showToast('Errore Drive — scarico localmente','error');
-    downloadDiretto(pdfUrl,nomeFile);
-  }
-}
-
-async function condividiWhatsApp(pdfUrl, nomeFile, testo){
-  if(window._closeShareDialog) window._closeShareDialog();
-  try{
-    const res=await fetch(pdfUrl);
-    const blob=await res.blob();
-    const file=new File([blob],nomeFile,{type:'application/pdf'});
-    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-      await navigator.share({title:'ARETE PDF',text:testo,files:[file]});
-      showToast('PDF condiviso!','success');
-      return;
-    }
-  }catch(e){if(e.name==='AbortError')return;}
-  downloadDiretto(pdfUrl,nomeFile);
-  setTimeout(()=>window.open(`https://wa.me/?text=${encodeURIComponent(testo+'\n\n(allegare il PDF scaricato)')}`, '_blank'),800);
-  showToast('PDF scaricato — allegalo su WhatsApp','success');
-}
-
-async function condividiMail(pdfUrl, nomeFile, mailSubj, mailBody){
-  if(window._closeShareDialog) window._closeShareDialog();
-  try{
-    const res=await fetch(pdfUrl);
-    const blob=await res.blob();
-    const file=new File([blob],nomeFile,{type:'application/pdf'});
-    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-      await navigator.share({title:'ARETE PDF',files:[file]});
-      showToast('PDF condiviso!','success');
-      return;
-    }
-  }catch(e){if(e.name==='AbortError')return;}
-  downloadDiretto(pdfUrl,nomeFile);
-  setTimeout(()=>{window.location.href=`mailto:?subject=${mailSubj}&body=${mailBody}`;},800);
-  showToast('PDF scaricato — allegalo alla mail','success');
-}
-
-function downloadPDFBlob(pdfUrl, nomeFile){
-  if(window._closeShareDialog) window._closeShareDialog();
-  downloadDiretto(pdfUrl, nomeFile);
-  showToast('PDF scaricato!','success');
-}
-
-function downloadDiretto(pdfUrl, nomeFile){
-  const a=document.createElement('a');
-  a.href=pdfUrl; a.download=nomeFile; a.style.display='none';
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>document.body.removeChild(a),1000);
-}
-
-// ── Funzione generica: genera blob PDF con jsPDF ─────────────────────────────
-async function generaPDFBlob(f, nomeFile){
+  // Carica jsPDF se non presente
   if(!window.jspdf){
-    try{
-      await new Promise((res,rej)=>{
-        const s=document.createElement('script');
-        s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-        s.onload=res; s.onerror=rej;
-        document.head.appendChild(s);
-      });
-    }catch(e){return null;}
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=res; s.onerror=rej;
+      document.head.appendChild(s);
+    });
   }
+
   try{
-   const {jsPDF}=window.jspdf;
+    const {jsPDF}=window.jspdf;
     const doc=new jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
     // A4 in pt: 595.28 x 841.89
     const PW=595.28, PH=841.89;
@@ -1320,35 +1113,7 @@ async function generaPDFBlob(f, nomeFile){
     row4mis([['D br (cm)',d.d_branca],['L br (m)',d.l_branca],['H br (m)',d.h_branca],['H bers (m)',d.h_bersaglio]]);
     row4mis([['Bio (kg)',bio?fmtN(bio,0):'—'],['CO\u2082 (kg/a)',co2?fmtN(co2,0):'—'],['O\u2082 (kg/a)',o2?fmtN(o2,0):'—'],['I.A. (kg/a)',ia?fmtN(ia,0):'—']]);
 
-    // ── Valore ecologico e Valore complessivo (TRG-S e ORD) ─────────────────
-    if(f.type==='trgs'||f.type==='ord'){
-      const ve=calcValoreEcologico(bio,co2,o2,ia);
-      const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
-      if(ve!==null){
-        checkY(18);
-        const hw=CW/2;
-        // Valore ecologico — sfondo verde
-        doc.setFillColor(232,245,233);
-        doc.rect(ML,Y,hw,18,'F');
-        doc.setDrawColor(129,199,132);
-        doc.rect(ML,Y,hw,18,'S');
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(46,125,50);
-        doc.text('VALORE ECOLOGICO',ML+4,Y+6);
-        doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(27,94,32);
-        doc.text(fmtEuro(ve),ML+4,Y+15);
-        // Valore complessivo — sfondo blu
-        doc.setFillColor(227,242,253);
-        doc.rect(ML+hw,Y,hw,18,'F');
-        doc.setDrawColor(144,202,249);
-        doc.rect(ML+hw,Y,hw,18,'S');
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(21,101,192);
-        doc.text('VALORE COMPLESSIVO',ML+hw+4,Y+6);
-        doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(13,71,161);
-        doc.text(fmtEuro(vc),ML+hw+4,Y+15);
-        doc.setTextColor(0,0,0);doc.setDrawColor(170,170,170);
-        Y+=20;
-      }
-    }
+    // ── DIAGNOSI ─────────────────────────────────────────────────────────────
     sezione('Diagnosi', VERDE_M);
     row1('Condiz. Salute e Vigoria',d.condiz_salute,100);
     row2('Fitopatia',d.fitopatia,'Agente Cariogeno',d.agente_cariogeno,60);
@@ -1588,42 +1353,35 @@ async function generaPDFBlob(f, nomeFile){
       doc.text(`ARETE – ${titolo} – Utente n° ${N_UTENTE}  |  Pag. ${p}/${nPages}  |  ${new Date().toLocaleString('it-IT')}`,PW/2,PH-8,{align:'center'});
     }
 
-    return doc.output('blob');
-  }catch(err){
-    console.error('jsPDF error:',err);
-    return null;
-  }
-}
+    // ── CONDIVISIONE ────────────────────────────────────────────────────────
+    const pdfBlob=doc.output('blob');
+    const pdfFile=new File([pdfBlob],nomeFile,{type:'application/pdf'});
 
-// ── Salva blob PDF sul dispositivo ──────────────────────────────────────────
-function salvaPDFBlob(pdfBlob, nomeFile){
-  // Median BlobDownloader (APK Median)
-  if(typeof medianDownloadBlobUrl==='function'){
-    try{
-      medianDownloadBlobUrl(URL.createObjectURL(pdfBlob),'pdf_'+Date.now(),nomeFile);
-      showToast('✅ PDF salvato in Download','success');
-      return;
-    }catch(e){}
-  }
-  // Data URI (Android WebView)
-  try{
-    const reader=new FileReader();
-    reader.onload=function(e){
-      const a=document.createElement('a');
-      a.href=e.target.result; a.download=nomeFile; a.style.display='none';
-      document.body.appendChild(a); a.click();
-      setTimeout(()=>document.body.removeChild(a),1000);
-      showToast('✅ PDF scaricato','success');
-    };
-    reader.readAsDataURL(pdfBlob);
-  }catch(e){
-    // Blob URL fallback
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[pdfFile]})){
+      try{
+        await navigator.share({
+          title:titolo,
+          text:`Scheda ARETE: ${specie}${idAlb?' · ID '+idAlb:''} · ${dataVal} · Utente n° ${N_UTENTE}`,
+          files:[pdfFile]
+        });
+        showToast('PDF condiviso!','success');
+        return;
+      } catch(e){
+        if(e.name==='AbortError') return;
+      }
+    }
+
+    // Fallback: scarica
     const url=URL.createObjectURL(pdfBlob);
     const a=document.createElement('a');
-    a.href=url; a.download=nomeFile; a.style.display='none';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},2000);
-    showToast('✅ PDF scaricato','success');
+    a.href=url; a.download=nomeFile; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    showToast('PDF scaricato — allegalo su WhatsApp o Mail','success');
+
+  } catch(err){
+    console.error('jsPDF error:',err);
+    exportPDF(id);
+    showToast('PDF aperto — Stampa → Salva come PDF','');
   }
 }
 
@@ -1816,26 +1574,11 @@ function buildPDFOrd(f){
     <td class="lbl">O₂ (kg/a)</td><td class="mono">${mv(o2,0)}</td>
     <td class="lbl">I.A. (kg/a)</td><td class="mono">${mv(ia,0)}</td>
   </tr>
-  ${(()=>{
-    const ve=calcValoreEcologico(bio,co2,o2,ia);
-    const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
-    if(ve===null) return '';
-    return `
-  <tr>
-    <td colspan="2" style="background:#e8f5e9;border:1px solid #81c784;padding:4px 6px">
-      <div style="font-size:7pt;font-weight:700;color:#2e7d32;text-transform:uppercase;letter-spacing:0.05em">Valore ecologico</div>
-      <div style="font-size:12pt;font-weight:900;color:#1b5e20;font-family:monospace">${fmtEuro(ve)}</div>
-    </td>
-    <td colspan="2" style="background:#e3f2fd;border:1px solid #90caf9;padding:4px 6px">
-      <div style="font-size:7pt;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:0.05em">Valore complessivo</div>
-      <div style="font-size:12pt;font-weight:900;color:#0d47a1;font-family:monospace">${fmtEuro(vc)}</div>
-    </td>
-    <td colspan="8" style="font-size:7pt;color:#777;padding:4px 6px;vertical-align:middle">
-      Val. ecologico = Bio×0.55 + CO₂×1 + O₂×5 + I.A.×10<br>
-      Val. complessivo = Val. ecologico + Val. ornamentale deprezzato
-    </td>
-  </tr>`;
-  })()}
+  ${(()=>{const ve=calcValoreEcologico(bio,co2,o2,ia);const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);if(ve===null)return '';return `<tr>
+    <td colspan="2" style="background:#e8f5e9;border:1px solid #81c784;padding:4px 6px"><div style="font-size:7pt;font-weight:700;color:#2e7d32;text-transform:uppercase">Valore ecologico</div><div style="font-size:12pt;font-weight:900;color:#1b5e20;font-family:monospace">${fmtEuro(ve)}</div></td>
+    <td colspan="2" style="background:#e3f2fd;border:1px solid #90caf9;padding:4px 6px"><div style="font-size:7pt;font-weight:700;color:#1565c0;text-transform:uppercase">Valore complessivo</div><div style="font-size:12pt;font-weight:900;color:#0d47a1;font-family:monospace">${fmtEuro(vc)}</div></td>
+    <td colspan="8" style="font-size:7pt;color:#777;padding:4px 6px;vertical-align:middle">Val.ecol.=Bio×0.55+CO₂×1+O₂×5+I.A.×10<br>Val.compl.=Val.ecol.+Val.ornamentale</td>
+  </tr>`})()}
 
   <!-- ④ DIAGNOSI -->
   <tr><td colspan="12" class="sh">DIAGNOSI</td></tr>
@@ -2081,32 +1824,7 @@ function buildPDF(f){
     <tr><td class="lbl">H</td><td class="mono">${vv(d.h_albero)}</td><td class="lbl">D tr</td><td class="mono">${vv(d.d_tronco)}</td><td class="lbl">Circ 🔁</td><td class="mono">${mv(circ,1)}</td></tr>
     <tr><td class="lbl">D ch</td><td class="mono">${vv(d.d_chioma)}</td><td class="lbl">D br</td><td class="mono">${vv(d.d_branca)}</td><td class="lbl">L br</td><td class="mono">${vv(d.l_branca)}</td></tr>
     <tr><td class="lbl">H br</td><td class="mono">${vv(d.h_branca)}</td><td class="lbl">H bers</td><td class="mono">${vv(d.h_bersaglio)}</td><td colspan="2"></td></tr>
-    ${bio!==null?`<tr>
-      <td class="lbl">Bio (kg)</td><td class="mono">${mv(bio,0)}</td>
-      <td class="lbl">CO₂</td><td class="mono">${mv(co2,0)}</td>
-      <td class="lbl">O₂</td><td class="mono">${mv(o2,0)}</td>
-    </tr>`:''}
-    ${(()=>{
-      if(type!=='trgs') return '';
-      const ve=calcValoreEcologico(bio,co2,o2,ia);
-      const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
-      if(ve===null) return '';
-      return `
-    <tr>
-      <td style="background:#e8f5e9;border:1px solid #81c784;padding:4px 5px">
-        <div style="font-size:7pt;font-weight:700;color:#2e7d32;text-transform:uppercase">Valore ecologico</div>
-        <div style="font-size:11pt;font-weight:900;color:#1b5e20;font-family:monospace">${fmtEuro(ve)}</div>
-      </td>
-      <td colspan="2" style="background:#e3f2fd;border:1px solid #90caf9;padding:4px 5px">
-        <div style="font-size:7pt;font-weight:700;color:#1565c0;text-transform:uppercase">Valore complessivo</div>
-        <div style="font-size:11pt;font-weight:900;color:#0d47a1;font-family:monospace">${fmtEuro(vc)}</div>
-      </td>
-      <td colspan="3" style="font-size:7pt;color:#777;padding:4px 5px;vertical-align:middle">
-        Val. ecol. = Bio×0.55 + CO₂×1 + O₂×5 + I.A.×10<br>
-        Val. compl. = Val. ecol. + Val. ornamentale deprezzato
-      </td>
-    </tr>`;
-    })()}
+    ${bio!==null?`<tr><td class="lbl">Valore ecologico</td><td>Bio: <span class="mono">${mv(bio,0)}</span> kg</td><td class="lbl">CO₂</td><td class="mono">${mv(co2,0)}</td><td class="lbl">O₂</td><td class="mono">${mv(o2,0)}</td></tr>`:''}
     <tr><td class="lbl">Condiz. Salute</td><td colspan="5" style="font-size:8pt">${vv(d.condiz_salute)}</td></tr>
     <tr><td colspan="6" class="sh">GRADO DI PERICOLO PERCEPITO (P)</td></tr>
     ${pericoloFields.map(([l,v])=>`<tr>
@@ -2144,37 +1862,28 @@ async function exportPDF(id){
   const specie=(f.data.specie||'').split(' - ')[0]||'';
   const dataVal=f.data.data||f.savedAt.split('T')[0];
   const idAlb=f.data.id_albero||'';
-  const nomeSuggerito=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}`;
-  const nomeInput=prompt('Nome del file PDF:', nomeSuggerito);
+  const nomeSug='ARETE_'+f.type.toUpperCase()+'_'+(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)+'_'+dataVal;
+  const nomeInput=prompt('Nome del file PDF:',nomeSug);
   if(nomeInput===null) return;
-  const nomeFile=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
+  const nomeFile=(nomeInput.trim()||nomeSug).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
   const nomePulito=nomeFile.replace(/\.pdf$/i,'');
-
-  // Android/APK: usa jsPDF e scarica direttamente il .pdf
-  // (window.open + print non funziona in WebView Android)
   const isAndroid=/Android/i.test(navigator.userAgent);
-  const isMedian=typeof medianDownloadBlobUrl==='function'||!!(window.median);
+  const isMedian=typeof medianDownloadBlobUrl==='function'||(!!window.median);
   if(isAndroid||isMedian){
-    showToast('Generazione PDF…');
-    const pdfBlob=await generaPDFBlob(f, nomeFile);
-    if(pdfBlob){
-      salvaPDFBlob(pdfBlob, nomeFile);
-      return;
-    }
+    showToast('Generazione PDF...');
+    const pdfBlob=await generaPDFBlob(f,nomeFile);
+    if(pdfBlob){salvaPDFBlob(pdfBlob,nomeFile);return;}
   }
-
-  // Desktop/iOS: apri HTML con pulsante stampa
   const w=window.open('','_blank');
   if(!w){
-    // Popup bloccato — fallback jsPDF
-    showToast('Generazione PDF…');
-    const pdfBlob=await generaPDFBlob(f, nomeFile);
-    if(pdfBlob){ salvaPDFBlob(pdfBlob, nomeFile); return; }
-    showToast('Consenti i popup nel browser','error'); return;
+    showToast('Generazione PDF...');
+    const pdfBlob=await generaPDFBlob(f,nomeFile);
+    if(pdfBlob){salvaPDFBlob(pdfBlob,nomeFile);return;}
+    showToast('Consenti i popup nel browser','error');return;
   }
   const html=buildPDF(f)
-    .replace(/onclick="window\.print\(\)"/,`onclick="document.title='${nomePulito}';window.print()"`)
-    .replace('<title>ARETE',`<title>${nomePulito}`);
+    .replace(/onclick="window\.print\(\)"/,'onclick="document.title=\''+nomePulito+'\';window.print()"')
+    .replace('<title>ARETE','<title>'+nomePulito);
   w.document.write(html);w.document.close();
   showToast('PDF aperto – Stampa → Salva come PDF','success');
 }
@@ -2218,73 +1927,318 @@ function downloadBlob(blob,name){
   a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
+// ── generaPDFBlob: genera PDF con jsPDF (condiviso da shareSaved ed exportPDF) ──
+async function generaPDFBlob(f,nomeFile){
+  if(!window.jspdf){
+    try{
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);
+      });
+    }catch(e){return null;}
+  }
+  try{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'pt',format:'a4',orientation:'portrait'});
+    const PW=595.28,PH=841.89,ML=20,MR=20,MT=20,CW=PW-ML-MR;
+    let Y=MT;
+    const d=f.data;
+    const tlabels={trgp:'TRG-P Popolamenti',trgs:'TRG-S Singolo Albero',ord:'ORD Valutazione Ordinaria'};
+    const titolo='ARETE \u2013 '+(tlabels[f.type]||f.type.toUpperCase());
+    const specie=(d.specie||'').split(' - ')[0]||'';
+    const dataVal=d.data||f.savedAt.split('T')[0];
+    const idAlb=d.id_albero||'';
+    const VERDE=[26,46,26],VERDE_M=[45,107,45],GRIGIO=[240,244,240];
+    const BORDO=[170,170,170],BIANCO=[255,255,255],NERO=[0,0,0],BLUE=[21,101,192];
+    const P_COL={1:[198,40,40],2:[198,40,40],3:[216,67,21],4:[249,168,37],5:[174,213,129],6:[102,187,106],7:[56,142,60]};
+    function checkY(n){if(Y+n>PH-30){doc.addPage();Y=MT;}}
+    function bordo(x,y,w,h){doc.setDrawColor(...BORDO);doc.setLineWidth(0.5);doc.rect(x,y,w,h,'S');}
+    function sezione(t,col){checkY(13);doc.setFillColor(...col);doc.rect(ML,Y,CW,13,'F');bordo(ML,Y,CW,13);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(255,255,255);doc.text(t.toUpperCase(),PW/2,Y+9,{align:'center'});doc.setTextColor(...NERO);Y+=13;}
+    function cellRow(items,rH=13){checkY(rH);let x=ML;items.forEach(({lbl,val,lw,vw})=>{doc.setFillColor(...GRIGIO);doc.rect(x,Y,lw,rH,'F');bordo(x,Y,lw,rH);doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...VERDE_M);doc.text(String(lbl||'').toUpperCase(),x+2,Y+rH*0.67);bordo(x+lw,Y,vw,rH);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(...NERO);const ln=doc.splitTextToSize(String(val||'\u2014'),vw-4);doc.text(ln[0]||'',x+lw+2,Y+rH*0.67);x+=lw+vw;});Y+=rH;}
+    function row2(l1,v1,l2,v2,lw=55){const hw=CW/2;cellRow([{lbl:l1,val:v1,lw,vw:hw-lw},{lbl:l2,val:v2,lw,vw:hw-lw}]);}
+    function row1(l,v,lw=70){cellRow([{lbl:l,val:v,lw,vw:CW-lw}]);}
+    function row4(items){checkY(13);const cw4=CW/4;let x=ML;items.forEach(([l,v])=>{const lw=cw4*0.42,vw=cw4-lw;doc.setFillColor(...GRIGIO);doc.rect(x,Y,lw,13,'F');bordo(x,Y,lw,13);doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(...VERDE_M);doc.text(String(l),x+2,Y+9);bordo(x+lw,Y,vw,13);doc.setFont('courier','bold');doc.setFontSize(8.5);doc.setTextColor(...NERO);doc.text(String(v||'\u2014'),x+lw+2,Y+9);x+=cw4;});Y+=13;}
+    // Intestazione
+    checkY(34);const hw1=CW*0.58,hw2=CW*0.26,hw3=CW*0.16;
+    doc.setDrawColor(...VERDE);doc.setLineWidth(1.5);doc.rect(ML,Y,hw1,34,'S');doc.setLineWidth(0.5);
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...VERDE);doc.text(titolo.replace('ARETE \u2013 ',''),ML+4,Y+20);
+    doc.setFillColor(...VERDE);doc.rect(ML+hw1,Y,hw2,34,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(245,240,232);doc.text('ARETE',ML+hw1+hw2/2,Y+18,{align:'center'});
+    doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(168,200,168);doc.text('PROTOCOLLO',ML+hw1+hw2/2,Y+27,{align:'center'});
+    doc.setDrawColor(...VERDE);doc.setLineWidth(1.5);doc.rect(ML+hw1+hw2,Y,hw3,34,'S');doc.setLineWidth(0.5);
+    doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...VERDE);doc.text(N_UTENTE,ML+hw1+hw2+hw3/2,Y+22,{align:'center'});
+    doc.setTextColor(...NERO);Y+=36;
+    // Dati generali
+    sezione('Dati Generali',VERDE_M);
+    row2('Rilevatore',d.rilevatore,'Data',d.data,55);
+    row1('Specie',d.specie,55);
+    row2('ID Albero',d.id_albero,'Dimora',d.dimora,55);
+    row2('Localiz.',d.localiz,'Pos. Sociale',d.pos_sociale,55);
+    row2('Stadio',d.stadio,'Vincoli',d.vincoli,55);
+    row1('Ubicazione',d.ubicazione,55);
+    // Misure
+    sezione('Misure Dendrologiche',VERDE_M);
+    const circ=calcCirc(d.d_tronco);
+    const bio=calcBio(d.d_tronco,d.h_albero);
+    const co2=calcCO2(bio),o2=calcO2(co2),ia=calcIA(bio);
+    row4([['H (m)',d.h_albero],['D tr (cm)',d.d_tronco],['Circ',circ?fmtN(circ,1):'\u2014'],['D ch (m)',d.d_chioma]]);
+    row4([['D br (cm)',d.d_branca],['L br (m)',d.l_branca],['H br (m)',d.h_branca],['H bers (m)',d.h_bersaglio]]);
+    row4([['Bio (kg)',bio?fmtN(bio,0):'\u2014'],['CO\u2082 (kg/a)',co2?fmtN(co2,0):'\u2014'],['O\u2082 (kg/a)',o2?fmtN(o2,0):'\u2014'],['I.A. (kg/a)',ia?fmtN(ia,0):'\u2014']]);
+    // Valore ecologico e complessivo
+    if(f.type==='trgs'||f.type==='ord'){
+      const ve=calcValoreEcologico(bio,co2,o2,ia);
+      const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
+      if(ve!==null){
+        checkY(18);const hw=CW/2;
+        doc.setFillColor(232,245,233);doc.rect(ML,Y,hw,18,'F');doc.setDrawColor(129,199,132);doc.rect(ML,Y,hw,18,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(46,125,50);doc.text('VALORE ECOLOGICO',ML+3,Y+6);
+        doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(27,94,32);doc.text(fmtEuro(ve),ML+3,Y+15);
+        doc.setFillColor(227,242,253);doc.rect(ML+hw,Y,hw,18,'F');doc.setDrawColor(144,202,249);doc.rect(ML+hw,Y,hw,18,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(21,101,192);doc.text('VALORE COMPLESSIVO',ML+hw+3,Y+6);
+        doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(13,71,161);doc.text(fmtEuro(vc),ML+hw+3,Y+15);
+        doc.setTextColor(...NERO);doc.setDrawColor(...BORDO);Y+=20;
+      }
+    }
+    // Diagnosi
+    sezione('Diagnosi',VERDE_M);
+    row1('Condiz. Salute',d.condiz_salute,80);
+    row2('Fitopatia',d.fitopatia,'Agente Cariogeno',d.agente_cariogeno,60);
+    // Grado pericolo
+    sezione('Grado di Pericolo (P)',VERDE_M);
+    [['BRANCA/RAMI',d.branca],['TRONCO/CASTELLO',d.tronco],['COLLETTO',d.colletto],['ZOLLA RADICALE',d.zolla]].forEach(([l,v])=>{
+      checkY(13);const lw=120,nw=20,hw2=CW-lw-nw;
+      doc.setFillColor(...GRIGIO);doc.rect(ML,Y,lw,13,'F');bordo(ML,Y,lw,13);
+      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...VERDE_M);doc.text(l,ML+2,Y+9);
+      const col=P_COL[parseInt(v)]||[200,200,200];
+      doc.setFillColor(...col);doc.rect(ML+lw,Y,nw,13,'F');bordo(ML+lw,Y,nw,13);
+      if(v){const lt=parseInt(v)<=2;doc.setTextColor(lt?255:20,lt?255:20,lt?255:20);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text(String(v),ML+lw+nw/2,Y+10,{align:'center'});}
+      bordo(ML+lw+nw,Y,hw2,13);
+      doc.setTextColor(80,80,80);doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+      const hint=f.type==='ord'?(DATA.gradoPericoloOrd||{})[parseInt(v)]||'':(DATA.gradoPericoloTriage||{})[parseInt(v)]||'';
+      doc.text(String(hint),ML+lw+nw+2,Y+9,{maxWidth:hw2-4});
+      doc.setTextColor(...NERO);Y+=13;
+    });
+    // Rischio
+    const pVals=['branca','tronco','colletto','zolla'].map(k=>parseInt(d[k])).filter(v=>!isNaN(v)&&v>0);
+    const minP=pVals.length?Math.min(...pVals):null;
+    const bCls=parseInt(d.classe_bersaglio);
+    if(minP&&bCls){
+      const rc=RISK_TABLE[minP+'-'+bCls]||Math.ceil((minP+bCls)/2);
+      const info=RISK_LABELS[rc]||RISK_LABELS[4];
+      const rgb=info.color.startsWith('#')?[parseInt(info.color.slice(1,3),16),parseInt(info.color.slice(3,5),16),parseInt(info.color.slice(5,7),16)]:[100,100,100];
+      checkY(16);doc.setFillColor(...rgb);doc.rect(ML,Y,CW,16,'F');doc.setDrawColor(...rgb);doc.rect(ML,Y,CW,16,'S');
+      doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+      const lbl=f.type==='ord'?('RISCHIO ATTUALE \u2013 Classe '+rc+' \u2013 '+info.label.toUpperCase()):('TRIAGE RISCHIO \u2013 '+(DATA.triageRischio[rc]||'').toUpperCase());
+      doc.text(lbl,PW/2,Y+10,{align:'center'});doc.setTextColor(...NERO);doc.setDrawColor(...BORDO);Y+=18;
+    }
+    // Note
+    if(d.note){
+      sezione('Note',VERDE_M);checkY(18);
+      doc.setFillColor(255,255,255);doc.rect(ML,Y,CW,18,'F');bordo(ML,Y,CW,18);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);
+      doc.text(doc.splitTextToSize(d.note,CW-6),ML+3,Y+9);Y+=18;
+    }
+    // Piè di pagina
+    const nP=doc.internal.getNumberOfPages();
+    for(let p=1;p<=nP;p++){
+      doc.setPage(p);doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(160,160,160);
+      doc.text('ARETE \u2013 '+titolo+' \u2013 Utente n\u00b0 '+N_UTENTE+'  |  Pag. '+p+'/'+nP+'  |  '+new Date().toLocaleString('it-IT'),PW/2,PH-8,{align:'center'});
+    }
+    return doc.output('blob');
+  }catch(e){console.error('jsPDF:',e);return null;}
+}
+
+function salvaPDFBlob(pdfBlob,nomeFile){
+  if(typeof medianDownloadBlobUrl==='function'){
+    try{medianDownloadBlobUrl(URL.createObjectURL(pdfBlob),'pdf_'+Date.now(),nomeFile);showToast('PDF salvato in Download','success');return;}catch(e){}
+  }
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const a=document.createElement('a');a.href=e.target.result;a.download=nomeFile;a.style.display='none';
+    document.body.appendChild(a);a.click();setTimeout(()=>document.body.removeChild(a),1000);
+    showToast('PDF scaricato','success');
+  };
+  reader.readAsDataURL(pdfBlob);
+}
+
+function downloadDiretto(url,nome){
+  const a=document.createElement('a');a.href=url;a.download=nome;a.style.display='none';
+  document.body.appendChild(a);a.click();setTimeout(()=>document.body.removeChild(a),1000);
+}
+
+function shareSaved(id){
+  const f=savedForms.find(x=>x.id===id);
+  if(!f) return;
+  sel('export-modal').classList.add('hidden');
+  const tlabels={trgp:'TRG-P Popolamenti',trgs:'TRG-S Singolo Albero',ord:'ORD Valutazione Ordinaria'};
+  const d=f.data;
+  const specie=(d.specie||'').split(' - ')[0]||'';
+  const dataVal=d.data||f.savedAt.split('T')[0];
+  const idAlb=d.id_albero||'';
+  const titolo='ARETE \u2013 '+(tlabels[f.type]||f.type.toUpperCase());
+  const nomeSuggerito='ARETE_'+f.type.toUpperCase()+'_'+(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)+'_'+dataVal;
+  mostraMenuCondivisione(f, nomeSuggerito, titolo, specie, dataVal, idAlb);
+}
+
+function mostraMenuCondivisione(f, nomeSuggerito, titolo, specie, dataVal, idAlb){
+  const old=document.getElementById('share-dialog');
+  if(old) old.remove();
+
+  const testo='Scheda ARETE: '+specie+(idAlb?' \u00b7 ID '+idAlb:'')+' \u00b7 '+dataVal+' \u00b7 Utente n\u00b0 '+N_UTENTE;
+  const mailSubj=encodeURIComponent(titolo+' \u2013 '+specie+' \u2013 '+dataVal);
+  const mailBody=encodeURIComponent(testo+'\n\nIn allegato la scheda in formato PDF.');
+
+  const overlay=document.createElement('div');
+  overlay.id='share-dialog';
+  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9000;display:flex;align-items:flex-end;justify-content:center';
+  overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
+
+  const sheet=document.createElement('div');
+  sheet.style.cssText='background:#f5f0e8;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px';
+
+  // Handle
+  const handle=document.createElement('div');
+  handle.style.cssText='width:36px;height:4px;background:#c8bfaa;border-radius:2px;margin:0 auto 16px';
+  sheet.appendChild(handle);
+
+  // Titolo
+  const title=document.createElement('div');
+  title.style.cssText='font-size:16px;font-weight:700;color:#1a2e1a;margin-bottom:12px';
+  title.textContent='Condividi PDF';
+  sheet.appendChild(title);
+
+  // Label nome
+  const labelNome=document.createElement('div');
+  labelNome.style.cssText='font-size:12px;font-weight:600;color:#555;margin-bottom:4px';
+  labelNome.textContent='Nome file';
+  sheet.appendChild(labelNome);
+
+  // Input nome
+  const inputNome=document.createElement('input');
+  inputNome.type='text';
+  inputNome.value=nomeSuggerito;
+  inputNome.style.cssText='width:100%;padding:9px 12px;border:1.5px solid #c8bfaa;border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;margin-bottom:16px;font-family:inherit';
+  sheet.appendChild(inputNome);
+
+  // Opzioni
+  const opzioni=[
+    {act:'drive',    label:'Google Drive',  sub:'Carica nel tuo Drive'},
+    {act:'whatsapp', label:'WhatsApp',       sub:'Invia via WhatsApp'},
+    {act:'mail',     label:'Mail',           sub:'Invia per email'},
+    {act:'download', label:'Scarica PDF',    sub:'Salva sul dispositivo'},
+  ];
+
+  const icone={
+    drive:'<svg width="28" height="24" viewBox="0 0 87.3 78"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.5l5.85 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>',
+    whatsapp:'<svg width="28" height="28" viewBox="0 0 24 24" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.115.554 4.1 1.523 5.824L.057 23.8a.5.5 0 00.614.658l6.142-1.612A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.001-1.371l-.357-.213-3.705.972.989-3.614-.233-.372A9.784 9.784 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/></svg>',
+    mail:'<span style="font-size:26px">&#x1F4E7;</span>',
+    download:'<span style="font-size:26px">&#x2B07;&#xFE0F;</span>',
+  };
+
+  opzioni.forEach(function(o){
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.style.cssText='display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid #ddd;border-radius:12px;background:#fff;width:100%;text-align:left;cursor:pointer;margin-bottom:8px;font-family:inherit';
+    btn.innerHTML='<span style="width:36px;text-align:center;flex-shrink:0">'+icone[o.act]+'</span>'
+      +'<span><strong style="display:block;font-size:14px">'+o.label+'</strong>'
+      +'<span style="font-size:12px;color:#888">'+o.sub+'</span></span>';
+
+    btn.addEventListener('click', async function(){
+      const nomeFile=(inputNome.value.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"\/\\|?*]/g,'_')+'.pdf';
+      overlay.remove();
+      showToast('Generazione PDF...');
+      const pdfBlob=await generaPDFBlob(f, nomeFile);
+      if(!pdfBlob){showToast('Errore generazione PDF','error');return;}
+      const pdfFile=new File([pdfBlob],nomeFile,{type:'application/pdf'});
+      const pdfUrl=URL.createObjectURL(pdfBlob);
+      setTimeout(function(){URL.revokeObjectURL(pdfUrl);},300000);
+      if(o.act==='drive'){
+        await _doSalvaSuDrive(pdfUrl,nomeFile);
+      } else if(o.act==='whatsapp'){
+        await _doShare(pdfFile,pdfUrl,nomeFile,testo,'https://wa.me/?text='+encodeURIComponent(testo+'\n\n(allegare il PDF scaricato)'));
+      } else if(o.act==='mail'){
+        await _doShare(pdfFile,pdfUrl,nomeFile,testo,'mailto:?subject='+mailSubj+'&body='+mailBody);
+      } else {
+        salvaPDFBlob(pdfBlob,nomeFile);
+        showToast('PDF scaricato','success');
+      }
+    });
+    sheet.appendChild(btn);
+  });
+
+  overlay.appendChild(sheet);
+  document.body.appendChild(overlay);
+}
+
+async function _doShare(pdfFile,pdfUrl,nomeFile,testo,fallbackUrl){
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[pdfFile]})){
+    try{
+      await navigator.share({title:'ARETE PDF',text:testo,files:[pdfFile]});
+      showToast('PDF condiviso!','success');
+      return;
+    }catch(e){if(e.name==='AbortError')return;}
+  }
+  salvaPDFBlob(pdfFile,nomeFile);
+  try{window.open(fallbackUrl,'_blank');}catch(e){}
+  showToast('PDF scaricato - allegalo manualmente','success');
+}
+
+
+// ── Drive upload ────────────────────────────────────────────────────────────
+let _driveToken=null,_driveTokenExpiry=0;
+async function getDriveToken(){
+  if(_driveToken&&Date.now()<_driveTokenExpiry-60000) return _driveToken;
+  let cid=localStorage.getItem('arete_gcid')||'';
+  if(!cid){cid=prompt('Client ID Google OAuth2:','');if(!cid)return null;localStorage.setItem('arete_gcid',cid.trim());}
+  return new Promise(resolve=>{
+    const doAuth=()=>{try{const cl=google.accounts.oauth2.initTokenClient({client_id:cid.trim(),scope:'https://www.googleapis.com/auth/drive.file',callback:(r)=>{if(r.error||!r.access_token){resolve(null);return;}_driveToken=r.access_token;_driveTokenExpiry=Date.now()+r.expires_in*1000;resolve(_driveToken);}});cl.requestAccessToken({prompt:''});}catch(e){resolve(null);}};
+    if(window.google&&google.accounts){doAuth();}else{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=doAuth;s.onerror=()=>resolve(null);document.head.appendChild(s);}
+  });
+}
+async function _doSalvaSuDrive(pdfUrl,nomeFile){
+  showToast('Connessione Google Drive...');
+  const token=await getDriveToken();
+  if(!token){showToast('Accesso Drive non riuscito','error');downloadDiretto(pdfUrl,nomeFile);return;}
+  showToast('Caricamento su Drive...');
+  try{
+    const res=await fetch(pdfUrl);const blob=await res.blob();
+    const meta=JSON.stringify({name:nomeFile,mimeType:'application/pdf'});
+    const form=new FormData();form.append('metadata',new Blob([meta],{type:'application/json'}));form.append('file',new File([blob],nomeFile,{type:'application/pdf'}));
+    const up=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{method:'POST',headers:{'Authorization':'Bearer '+token},body:form});
+    if(!up.ok) throw new Error('HTTP '+up.status);
+    const r=await up.json();showToast('Salvato su Google Drive!','success');
+    if(r.webViewLink)setTimeout(()=>window.open(r.webViewLink,'_blank'),1500);
+  }catch(e){showToast('Errore Drive - scarico localmente','error');downloadDiretto(pdfUrl,nomeFile);}
+}
+
+
 // ===== BACKUP EXPORT / IMPORT =====
 async function backupExport(){
   if(!savedForms.length){showToast('Nessuna scheda da esportare','error');return;}
-  const nomeDefault=`ARETE_backup_${today()}`;
-  const nomeInput=prompt('Nome del file di backup:', nomeDefault);
+  const nomeDefault='ARETE_backup_'+today();
+  const nomeInput=prompt('Nome del file di backup:',nomeDefault);
   if(nomeInput===null) return;
   const nomeJson=(nomeInput.trim()||nomeDefault).replace(/\.json$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.json';
   const payload={version:1,exportedAt:new Date().toISOString(),schede:savedForms};
   const contenuto=JSON.stringify(payload,null,2);
   const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
-  // Web Share API con file .json (Android)
   if(navigator.share&&navigator.canShare){
     try{
       const file=new File([blob],nomeJson,{type:'application/json'});
       if(navigator.canShare({files:[file]})){
-        await navigator.share({title:'Backup ARETE',text:`Backup ARETE – ${savedForms.length} schede – ${today()}`,files:[file]});
-        showToast('✅ Backup .json salvato!','success');
-        return;
+        await navigator.share({title:'Backup ARETE',text:'Backup ARETE - '+savedForms.length+' schede - '+today(),files:[file]});
+        showToast('Backup salvato!','success');return;
       }
     }catch(e){if(e.name==='AbortError')return;}
   }
-  // Download via data URI (Android WebView/APK Median)
-  try{
-    const b64=btoa(unescape(encodeURIComponent(contenuto)));
-    const a=document.createElement('a');
-    a.href='data:application/json;charset=utf-8;base64,'+b64;
-    a.download=nomeJson; a.style.display='none';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>document.body.removeChild(a),1000);
-    showToast('✅ Backup .json scaricato','success');
-    return;
-  }catch(e){}
-  // Median APK share
-  if(window.median&&window.median.share){
-    try{
-      const b64=btoa(unescape(encodeURIComponent(contenuto)));
-      median.share.sharePage({url:'data:application/json;base64,'+b64,text:`Backup ARETE – ${savedForms.length} schede`});
-      showToast('✅ Scegli dove salvare','success');
-      return;
-    }catch(e){}
-  }
-  // Median BlobDownloader
-  if(typeof medianDownloadBlobUrl==='function'){
-    try{
-      medianDownloadBlobUrl(URL.createObjectURL(blob),'backup_'+Date.now(),nomeJson);
-      showToast('✅ Backup .json in Download','success');
-      return;
-    }catch(e){}
-  }
-  // Modal copia testo (fallback universale)
-  const old=document.getElementById('backup-modal');if(old)old.remove();
-  const modal=document.createElement('div');
-  modal.id='backup-modal';
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   const b64=btoa(unescape(encodeURIComponent(contenuto)));
-  modal.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;gap:12px;box-sizing:border-box">
-    <div style="font-size:17px;font-weight:700;color:#1a2e1a">💾 ${nomeJson}</div>
-    <div style="font-size:13px;color:#666">Copia il testo e salvalo su Drive o Note.</div>
-    <textarea id="backup-testo" readonly style="flex:1;min-height:100px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:11px;font-family:monospace;resize:none;background:#f8f8f8" onclick="this.select()">${b64}</textarea>
-    <div style="display:flex;gap:8px">
-      <button onclick="const t=document.getElementById('backup-testo');t.select();if(navigator.clipboard){navigator.clipboard.writeText(t.value).then(()=>showToast('✅ Copiato!','success'));}else{document.execCommand('copy');showToast('✅ Copiato!','success');}"
-        style="flex:1;padding:11px;background:#1a2e1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">📋 Copia</button>
-      <button onclick="document.getElementById('backup-modal').remove()"
-        style="flex:1;padding:11px;background:#f0f0f0;border:none;border-radius:8px;cursor:pointer">Chiudi</button>
-    </div>
-  </div>`;
-  document.body.appendChild(modal);
+  const a=document.createElement('a');
+  a.href='data:application/json;charset=utf-8;base64,'+b64;
+  a.download=nomeJson;a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>document.body.removeChild(a),1000);
+  showToast('Backup scaricato','success');
 }
 
 function backupImport(input){
@@ -2292,28 +2246,25 @@ function backupImport(input){
   const reader=new FileReader();
   reader.onload=function(e){
     try{
-      let testo=e.target.result.trim();
-      if(!testo.startsWith('{')&&!testo.startsWith('[')){
-        try{testo=decodeURIComponent(escape(atob(testo)));}catch(ex){}
-      }
-      const raw=JSON.parse(testo);
+      let t=e.target.result.trim();
+      if(!t.startsWith('{')&&!t.startsWith('[')){try{t=decodeURIComponent(escape(atob(t)));}catch(ex){}}
+      const raw=JSON.parse(t);
       const schede=Array.isArray(raw)?raw:(raw.schede&&Array.isArray(raw.schede)?raw.schede:null);
       if(!schede||!schede.length){showToast('File non valido o vuoto','error');return;}
-      let aggiunte=0,aggiornate=0;
+      let agg=0,upd=0;
       schede.forEach(imp=>{
         if(!imp.id||!imp.type||!imp.data)return;
         const idx=savedForms.findIndex(f=>f.id===imp.id);
-        if(idx<0){savedForms.push(imp);aggiunte++;}
-        else if(imp.savedAt>savedForms[idx].savedAt){savedForms[idx]=imp;aggiornate++;}
+        if(idx<0){savedForms.push(imp);agg++;}
+        else if(imp.savedAt>savedForms[idx].savedAt){savedForms[idx]=imp;upd++;}
       });
       localStorage.setItem('arete_forms',JSON.stringify(savedForms));
       renderHomeSaved();renderArchive();
-      showToast(`✅ Importate: ${aggiunte} nuove, ${aggiornate} aggiornate`,'success');
+      showToast('Importate: '+agg+' nuove, '+upd+' aggiornate','success');
     }catch(err){showToast('Errore lettura file','error');}
     input.value='';
   };
   reader.readAsText(file,'utf-8');
 }
-
 
 renderHomeSaved();
