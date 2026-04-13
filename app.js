@@ -326,14 +326,16 @@ function buildMisureSection(d, ft, hasEco) {
       <div class="eco-item"><span class="eco-label">O₂ <small>(kg/a)</small></span><span class="eco-val" id="o2-${ft}">${o2?fmtN(o2,0):'—'}</span></div>
       <div class="eco-item"><span class="eco-label">I.A. <small>(kg/a)</small></span><span class="eco-val" id="ia-${ft}">${ia?fmtN(ia,0):'—'}</span></div>
     </div>
-    <div class="eco-bar" style="margin-top:6px;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:1.5px solid #81c784;border-radius:10px">
-      <div class="eco-item">
-        <span class="eco-label" style="color:#2e7d32">Val. Ecologico 🌿</span>
-        <span class="eco-val" id="val-ecol-${ft}" style="color:#1b5e20;font-size:13px">${fmtEuro(ve)}</span>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div style="background:#e8f5e9;border:1.5px solid #81c784;border-radius:10px;padding:10px 14px">
+        <div style="font-size:11px;font-weight:600;color:#2e7d32;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">🌿 Valore ecologico</div>
+        <div style="font-size:20px;font-weight:700;color:#1b5e20;font-family:'DM Mono',monospace" id="val-ecol-${ft}">${fmtEuro(ve)}</div>
+        <div style="font-size:10px;color:#4caf50;margin-top:2px">Bio×0.55 + CO₂ + O₂×5 + I.A.×10</div>
       </div>
-      <div class="eco-item">
-        <span class="eco-label" style="color:#1565c0">Val. Complessivo 💰</span>
-        <span class="eco-val" id="val-comp-${ft}" style="color:#0d47a1;font-size:13px">${fmtEuro(vc)}</span>
+      <div style="background:#e3f2fd;border:1.5px solid #90caf9;border-radius:10px;padding:10px 14px">
+        <div style="font-size:11px;font-weight:600;color:#1565c0;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">💰 Valore complessivo</div>
+        <div style="font-size:20px;font-weight:700;color:#0d47a1;font-family:'DM Mono',monospace" id="val-comp-${ft}">${fmtEuro(vc)}</div>
+        <div style="font-size:10px;color:#64b5f6;margin-top:2px">Val. ecologico + Val. ornamentale</div>
       </div>
     </div>` : '';
 
@@ -1592,18 +1594,21 @@ function buildPDFOrd(f){
     const ve=calcValoreEcologico(bio,co2,o2,ia);
     const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
     if(ve===null) return '';
-    return `<tr>
-      <td colspan="4" style="background:#e8f5e9;padding:3px 5px;font-size:8.5pt">
-        <b style="color:#2e7d32">🌿 Valore Ecologico</b>
-        <span class="mono" style="color:#1b5e20;font-size:10pt;margin-left:8px">${fmtEuro(ve)}</span>
-        <span style="font-size:7pt;color:#666;margin-left:6px">(Bio×0.55 + CO₂×1 + O₂×5 + I.A.×10)</span>
-      </td>
-      <td colspan="8" style="background:#e3f2fd;padding:3px 5px;font-size:8.5pt">
-        <b style="color:#1565c0">💰 Valore Complessivo</b>
-        <span class="mono" style="color:#0d47a1;font-size:10pt;margin-left:8px">${fmtEuro(vc)}</span>
-        <span style="font-size:7pt;color:#666;margin-left:6px">(Val.Ecologico + Val.Ornamentale)</span>
-      </td>
-    </tr>`;
+    return `
+  <tr>
+    <td colspan="2" style="background:#e8f5e9;border:1px solid #81c784;padding:4px 6px">
+      <div style="font-size:7pt;font-weight:700;color:#2e7d32;text-transform:uppercase;letter-spacing:0.05em">Valore ecologico</div>
+      <div style="font-size:12pt;font-weight:900;color:#1b5e20;font-family:monospace">${fmtEuro(ve)}</div>
+    </td>
+    <td colspan="2" style="background:#e3f2fd;border:1px solid #90caf9;padding:4px 6px">
+      <div style="font-size:7pt;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:0.05em">Valore complessivo</div>
+      <div style="font-size:12pt;font-weight:900;color:#0d47a1;font-family:monospace">${fmtEuro(vc)}</div>
+    </td>
+    <td colspan="8" style="font-size:7pt;color:#777;padding:4px 6px;vertical-align:middle">
+      Val. ecologico = Bio×0.55 + CO₂×1 + O₂×5 + I.A.×10<br>
+      Val. complessivo = Val. ecologico + Val. ornamentale deprezzato
+    </td>
+  </tr>`;
   })()}
 
   <!-- ④ DIAGNOSI -->
@@ -1860,17 +1865,21 @@ function buildPDF(f){
       const ve=calcValoreEcologico(bio,co2,o2,ia);
       const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
       if(ve===null) return '';
-      return `<tr>
-        <td colspan="2" style="background:#e8f5e9;padding:2px 4px;font-size:8pt">
-          <b style="color:#2e7d32">🌿 Val. Ecologico</b><br>
-          <span style="font-family:monospace;font-weight:700;color:#1b5e20">${fmtEuro(ve)}</span>
-        </td>
-        <td colspan="4" style="background:#e3f2fd;padding:2px 4px;font-size:8pt">
-          <b style="color:#1565c0">💰 Val. Complessivo</b><br>
-          <span style="font-family:monospace;font-weight:700;color:#0d47a1">${fmtEuro(vc)}</span>
-          <span style="font-size:6.5pt;color:#777"> = Val.Ecol. + Val.Ornamentale</span>
-        </td>
-      </tr>`;
+      return `
+    <tr>
+      <td style="background:#e8f5e9;border:1px solid #81c784;padding:4px 5px">
+        <div style="font-size:7pt;font-weight:700;color:#2e7d32;text-transform:uppercase">Valore ecologico</div>
+        <div style="font-size:11pt;font-weight:900;color:#1b5e20;font-family:monospace">${fmtEuro(ve)}</div>
+      </td>
+      <td colspan="2" style="background:#e3f2fd;border:1px solid #90caf9;padding:4px 5px">
+        <div style="font-size:7pt;font-weight:700;color:#1565c0;text-transform:uppercase">Valore complessivo</div>
+        <div style="font-size:11pt;font-weight:900;color:#0d47a1;font-family:monospace">${fmtEuro(vc)}</div>
+      </td>
+      <td colspan="3" style="font-size:7pt;color:#777;padding:4px 5px;vertical-align:middle">
+        Val. ecol. = Bio×0.55 + CO₂×1 + O₂×5 + I.A.×10<br>
+        Val. compl. = Val. ecol. + Val. ornamentale deprezzato
+      </td>
+    </tr>`;
     })()}
     <tr><td class="lbl">Condiz. Salute</td><td colspan="5" style="font-size:8pt">${vv(d.condiz_salute)}</td></tr>
     <tr><td colspan="6" class="sh">GRADO DI PERICOLO PERCEPITO (P)</td></tr>
