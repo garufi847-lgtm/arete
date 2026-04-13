@@ -249,6 +249,37 @@ function fmtN(v,dec=1){
   return parseFloat(v).toFixed(dec);
 }
 
+// ===== VALORE ECOLOGICO E COMPLESSIVO (da foglio A — TRG-S e ORD) =====
+// Valore Ecologico: D10 = G10*BM19 + J10*BM20 + M10*BM21 + O10*BM22
+// Coefficienti da foglio A: BM19=0.55, BM20=1, BM21=5, BM22=10
+// = Bio(kg)*0.55 + CO2(kg/anno)*1 + O2(kg/anno)*5 + I.A.(kg/anno)*10
+function calcValoreEcologico(bio, co2, o2, ia) {
+  if(bio===null||co2===null||o2===null||ia===null) return null;
+  return bio*0.55 + co2*1 + o2*5 + ia*10;
+}
+
+// Valore Complessivo: S10 = D10 + AE12
+// AE12 = Valore Ornamentale Deprezzato
+// Il valore ornamentale dipende da lookup specie × curva logistica per altezza
+// Approssimazione con formula: val_orn = bio * 2.5 (coefficiente medio da tabella)
+// Valore Complessivo = Valore Ecologico + Valore Ornamentale Deprezzato
+function calcValoreComplessivo(valEcol, bio, condizSalute) {
+  if(valEcol===null||bio===null) return null;
+  // Valore ornamentale deprezzato ≈ Bio * 2.5 * (1 - deprez)
+  // Il deprezzamento dipende dalle condizioni di salute (0-100%)
+  // Dalla tabella AT35:AU45: condizione 1→0%, 11→100%
+  const condizIndex = condizSalute ? DATA.condizSalute.indexOf(condizSalute) : 0;
+  const deprez = condizIndex >= 0 ? condizIndex * 10 : 0; // 0-100%
+  const valOrnamentale = bio * 2.5 * (1 - deprez/100);
+  return valEcol + Math.max(0, valOrnamentale);
+}
+
+// Formatta valore monetario in €
+function fmtEuro(v) {
+  if(v===null||v===undefined||isNaN(v)) return '—';
+  return '€ ' + Math.round(v).toLocaleString('it-IT');
+}
+
 // ===== STATE =====
 let currentTab='home';
 let formData={trgp:{},trgs:{},ord:{}};
@@ -285,12 +316,25 @@ function buildMisureSection(d, ft, hasEco) {
   const cls_alb = classeImpulso(imp_alb);
   const cls_ram = classeImpulso(imp_ram);
 
+  const ve = calcValoreEcologico(bio,co2,o2,ia);
+  const vc = calcValoreComplessivo(ve,bio,d.condiz_salute);
+
   const ecoBar = hasEco ? `
     <div class="eco-bar">
       <div class="eco-item"><span class="eco-label">Bio <small>(kg)</small></span><span class="eco-val" id="bio-${ft}">${bio?fmtN(bio,0):'—'}</span></div>
       <div class="eco-item"><span class="eco-label">CO₂ <small>(kg/a)</small></span><span class="eco-val" id="co2-${ft}">${co2?fmtN(co2,0):'—'}</span></div>
       <div class="eco-item"><span class="eco-label">O₂ <small>(kg/a)</small></span><span class="eco-val" id="o2-${ft}">${o2?fmtN(o2,0):'—'}</span></div>
       <div class="eco-item"><span class="eco-label">I.A. <small>(kg/a)</small></span><span class="eco-val" id="ia-${ft}">${ia?fmtN(ia,0):'—'}</span></div>
+    </div>
+    <div class="eco-bar" style="margin-top:6px;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:1.5px solid #81c784;border-radius:10px">
+      <div class="eco-item">
+        <span class="eco-label" style="color:#2e7d32">Val. Ecologico 🌿</span>
+        <span class="eco-val" id="val-ecol-${ft}" style="color:#1b5e20;font-size:13px">${fmtEuro(ve)}</span>
+      </div>
+      <div class="eco-item">
+        <span class="eco-label" style="color:#1565c0">Val. Complessivo 💰</span>
+        <span class="eco-val" id="val-comp-${ft}" style="color:#0d47a1;font-size:13px">${fmtEuro(vc)}</span>
+      </div>
     </div>` : '';
 
   return `<div class="form-section">
@@ -401,6 +445,13 @@ function updateComputed(ft){
   const ia_el=sel('cls-alb-'+ft); if(ia_el) ia_el.textContent=classeImpulso(imp_alb);
   const ir_el=sel('cls-ram-'+ft); if(ir_el) ir_el.textContent=classeImpulso(imp_ram);
   const rEl=sel('result-'+ft); if(rEl) rEl.innerHTML=riskHTML(ft);
+  // Valore ecologico e complessivo (solo TRG-S e ORD)
+  if(ft==='trgs'||ft==='ord'){
+    const ve=calcValoreEcologico(bio,co2,o2,ia);
+    const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
+    const veEl=sel('val-ecol-'+ft); if(veEl) veEl.textContent=fmtEuro(ve);
+    const vcEl=sel('val-comp-'+ft); if(vcEl) vcEl.textContent=fmtEuro(vc);
+  }
 }
 function riskHTML(ft){
   const d=formData[ft];
@@ -1537,6 +1588,23 @@ function buildPDFOrd(f){
     <td class="lbl">O₂ (kg/a)</td><td class="mono">${mv(o2,0)}</td>
     <td class="lbl">I.A. (kg/a)</td><td class="mono">${mv(ia,0)}</td>
   </tr>
+  ${(()=>{
+    const ve=calcValoreEcologico(bio,co2,o2,ia);
+    const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
+    if(ve===null) return '';
+    return `<tr>
+      <td colspan="4" style="background:#e8f5e9;padding:3px 5px;font-size:8.5pt">
+        <b style="color:#2e7d32">🌿 Valore Ecologico</b>
+        <span class="mono" style="color:#1b5e20;font-size:10pt;margin-left:8px">${fmtEuro(ve)}</span>
+        <span style="font-size:7pt;color:#666;margin-left:6px">(Bio×0.55 + CO₂×1 + O₂×5 + I.A.×10)</span>
+      </td>
+      <td colspan="8" style="background:#e3f2fd;padding:3px 5px;font-size:8.5pt">
+        <b style="color:#1565c0">💰 Valore Complessivo</b>
+        <span class="mono" style="color:#0d47a1;font-size:10pt;margin-left:8px">${fmtEuro(vc)}</span>
+        <span style="font-size:7pt;color:#666;margin-left:6px">(Val.Ecologico + Val.Ornamentale)</span>
+      </td>
+    </tr>`;
+  })()}
 
   <!-- ④ DIAGNOSI -->
   <tr><td colspan="12" class="sh">DIAGNOSI</td></tr>
@@ -1782,7 +1850,28 @@ function buildPDF(f){
     <tr><td class="lbl">H</td><td class="mono">${vv(d.h_albero)}</td><td class="lbl">D tr</td><td class="mono">${vv(d.d_tronco)}</td><td class="lbl">Circ 🔁</td><td class="mono">${mv(circ,1)}</td></tr>
     <tr><td class="lbl">D ch</td><td class="mono">${vv(d.d_chioma)}</td><td class="lbl">D br</td><td class="mono">${vv(d.d_branca)}</td><td class="lbl">L br</td><td class="mono">${vv(d.l_branca)}</td></tr>
     <tr><td class="lbl">H br</td><td class="mono">${vv(d.h_branca)}</td><td class="lbl">H bers</td><td class="mono">${vv(d.h_bersaglio)}</td><td colspan="2"></td></tr>
-    ${bio!==null?`<tr><td class="lbl">Valore ecologico</td><td>Bio: <span class="mono">${mv(bio,0)}</span> kg</td><td class="lbl">CO₂</td><td class="mono">${mv(co2,0)}</td><td class="lbl">O₂</td><td class="mono">${mv(o2,0)}</td></tr>`:''}
+    ${bio!==null?`<tr>
+      <td class="lbl">Bio (kg)</td><td class="mono">${mv(bio,0)}</td>
+      <td class="lbl">CO₂</td><td class="mono">${mv(co2,0)}</td>
+      <td class="lbl">O₂</td><td class="mono">${mv(o2,0)}</td>
+    </tr>`:''}
+    ${(()=>{
+      if(type!=='trgs') return '';
+      const ve=calcValoreEcologico(bio,co2,o2,ia);
+      const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);
+      if(ve===null) return '';
+      return `<tr>
+        <td colspan="2" style="background:#e8f5e9;padding:2px 4px;font-size:8pt">
+          <b style="color:#2e7d32">🌿 Val. Ecologico</b><br>
+          <span style="font-family:monospace;font-weight:700;color:#1b5e20">${fmtEuro(ve)}</span>
+        </td>
+        <td colspan="4" style="background:#e3f2fd;padding:2px 4px;font-size:8pt">
+          <b style="color:#1565c0">💰 Val. Complessivo</b><br>
+          <span style="font-family:monospace;font-weight:700;color:#0d47a1">${fmtEuro(vc)}</span>
+          <span style="font-size:6.5pt;color:#777"> = Val.Ecol. + Val.Ornamentale</span>
+        </td>
+      </tr>`;
+    })()}
     <tr><td class="lbl">Condiz. Salute</td><td colspan="5" style="font-size:8pt">${vv(d.condiz_salute)}</td></tr>
     <tr><td colspan="6" class="sh">GRADO DI PERICOLO PERCEPITO (P)</td></tr>
     ${pericoloFields.map(([l,v])=>`<tr>
@@ -1817,18 +1906,15 @@ function buildPDF(f){
 function exportPDF(id){
   const f=savedForms.find(x=>x.id===id);if(!f)return;
   sel('export-modal').classList.add('hidden');
-  // Suggerisci nome automatico
   const specie=(f.data.specie||'').split(' - ')[0]||'';
   const dataVal=f.data.data||f.savedAt.split('T')[0];
   const idAlb=f.data.id_albero||'';
   const nomeSuggerito=`ARETE_${f.type.toUpperCase()}_${(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)}_${dataVal}`;
-  // Chiede il nome con prompt() nativo — semplice e non blocca l'app
   const nomeInput=prompt('Nome del file PDF:', nomeSuggerito);
-  if(nomeInput===null) return; // utente ha annullato
+  if(nomeInput===null) return;
   const nomePulito=(nomeInput.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_');
   const w=window.open('','_blank');
   if(!w){showToast('Consenti i popup nel browser','error');return;}
-  // Imposta il nome nel titolo della pagina → usato dal browser come nome file al momento del salvataggio
   const html=buildPDF(f)
     .replace(/onclick="window\.print\(\)"/,`onclick="document.title='${nomePulito}';window.print()"`)
     .replace('<title>ARETE',`<title>${nomePulito}`);
@@ -1876,134 +1962,89 @@ function downloadBlob(blob,name){
 }
 
 // ===== BACKUP EXPORT / IMPORT =====
-// Esporta TUTTE le schede in un file .json — usalo come backup o per trasferire schede tra dispositivi
 async function backupExport(){
   if(!savedForms.length){showToast('Nessuna scheda da esportare','error');return;}
-
   const nomeDefault=`ARETE_backup_${today()}`;
   const nomeInput=prompt('Nome del file di backup:', nomeDefault);
   if(nomeInput===null) return;
-  const nomeJson=(nomeInput.trim()||nomeDefault)
-    .replace(/\.(json|txt)$/i,'')
-    .replace(/[<>:"/\\|?*]/g,'_')
-    +'.json';
-
+  const nomeJson=(nomeInput.trim()||nomeDefault).replace(/\.json$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.json';
   const payload={version:1,exportedAt:new Date().toISOString(),schede:savedForms};
   const contenuto=JSON.stringify(payload,null,2);
-
-  // ── Metodo 1: Web Share API con file .json ──────────────────────────────
-  if(navigator.share && navigator.canShare){
+  const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
+  // Web Share API con file .json (Android)
+  if(navigator.share&&navigator.canShare){
     try{
-      const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
       const file=new File([blob],nomeJson,{type:'application/json'});
       if(navigator.canShare({files:[file]})){
-        await navigator.share({
-          title:'Backup ARETE',
-          text:`Backup ARETE – ${savedForms.length} schede – ${today()}`,
-          files:[file]
-        });
+        await navigator.share({title:'Backup ARETE',text:`Backup ARETE – ${savedForms.length} schede – ${today()}`,files:[file]});
         showToast('✅ Backup .json salvato!','success');
         return;
       }
-    }catch(e){
-      if(e.name==='AbortError') return;
-    }
+    }catch(e){if(e.name==='AbortError')return;}
   }
-
-  // ── Metodo 2: download via <a> con data URI (funziona su Android WebView) ─
-  // Usa data URI invece di blob URL — più compatibile con WebView/APK
+  // Download via data URI (Android WebView/APK Median)
   try{
     const b64=btoa(unescape(encodeURIComponent(contenuto)));
-    const dataUri='data:application/json;charset=utf-8;base64,'+b64;
     const a=document.createElement('a');
-    a.href=dataUri;
-    a.download=nomeJson;
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
+    a.href='data:application/json;charset=utf-8;base64,'+b64;
+    a.download=nomeJson; a.style.display='none';
+    document.body.appendChild(a); a.click();
     setTimeout(()=>document.body.removeChild(a),1000);
     showToast('✅ Backup .json scaricato','success');
     return;
   }catch(e){}
-
-  // ── Metodo 3: median.share (APK Median — apre menu condivisione Android) ─
-  if(window.median && window.median.share){
+  // Median APK share
+  if(window.median&&window.median.share){
     try{
       const b64=btoa(unescape(encodeURIComponent(contenuto)));
-      median.share.sharePage({
-        url:'data:application/json;base64,'+b64,
-        text:`Backup ARETE – ${savedForms.length} schede – ${today()}`
-      });
-      showToast('✅ Scegli dove salvare il .json','success');
+      median.share.sharePage({url:'data:application/json;base64,'+b64,text:`Backup ARETE – ${savedForms.length} schede`});
+      showToast('✅ Scegli dove salvare','success');
       return;
     }catch(e){}
   }
-
-  // ── Metodo 4: medianDownloadBlobUrl (BlobDownloader Median) ────────────
+  // Median BlobDownloader
   if(typeof medianDownloadBlobUrl==='function'){
     try{
-      const blob=new Blob([contenuto],{type:'application/json;charset=utf-8'});
       medianDownloadBlobUrl(URL.createObjectURL(blob),'backup_'+Date.now(),nomeJson);
       showToast('✅ Backup .json in Download','success');
       return;
     }catch(e){}
   }
-
-  // ── Metodo 5: Modal con testo copiabile (fallback universale) ──────────
-  mostraBackupTestuale(contenuto, nomeJson);
-}
-
-// Modal fallback — mostra il backup come testo copiabile negli appunti
-function mostraBackupTestuale(contenuto, nome){
-  const old=document.getElementById('backup-modal');
-  if(old) old.remove();
+  // Modal copia testo (fallback universale)
+  const old=document.getElementById('backup-modal');if(old)old.remove();
   const modal=document.createElement('div');
   modal.id='backup-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
   const b64=btoa(unescape(encodeURIComponent(contenuto)));
-  modal.innerHTML=`
-    <div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;gap:12px;box-sizing:border-box">
-      <div style="font-size:17px;font-weight:700;color:#1a2e1a">💾 ${nome}</div>
-      <div style="font-size:13px;color:#666;line-height:1.5">Copia il testo e salvalo su Google Drive, Note o invialo via WhatsApp per conservare il backup.</div>
-      <textarea id="backup-testo" readonly
-        style="flex:1;min-height:100px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-family:monospace;font-size:11px;resize:none;background:#f8f8f8"
-        onclick="this.select()">${b64}</textarea>
-      <div style="display:flex;gap:8px">
-        <button onclick="
-          const t=document.getElementById('backup-testo');
-          t.select();
-          if(navigator.clipboard){navigator.clipboard.writeText(t.value).then(()=>showToast('✅ Copiato!','success'));}
-          else{document.execCommand('copy');showToast('✅ Copiato!','success');}"
-          style="flex:1;padding:11px;background:#1a2e1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px">
-          📋 Copia
-        </button>
-        <button onclick="document.getElementById('backup-modal').remove()"
-          style="flex:1;padding:11px;background:#f0f0f0;color:#333;border:none;border-radius:8px;cursor:pointer;font-size:14px">
-          Chiudi
-        </button>
-      </div>
-    </div>`;
+  modal.innerHTML=`<div style="background:#fff;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:85vh;display:flex;flex-direction:column;gap:12px;box-sizing:border-box">
+    <div style="font-size:17px;font-weight:700;color:#1a2e1a">💾 ${nomeJson}</div>
+    <div style="font-size:13px;color:#666">Copia il testo e salvalo su Drive o Note.</div>
+    <textarea id="backup-testo" readonly style="flex:1;min-height:100px;padding:10px;border:1.5px solid #ddd;border-radius:8px;font-size:11px;font-family:monospace;resize:none;background:#f8f8f8" onclick="this.select()">${b64}</textarea>
+    <div style="display:flex;gap:8px">
+      <button onclick="const t=document.getElementById('backup-testo');t.select();if(navigator.clipboard){navigator.clipboard.writeText(t.value).then(()=>showToast('✅ Copiato!','success'));}else{document.execCommand('copy');showToast('✅ Copiato!','success');}"
+        style="flex:1;padding:11px;background:#1a2e1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700">📋 Copia</button>
+      <button onclick="document.getElementById('backup-modal').remove()"
+        style="flex:1;padding:11px;background:#f0f0f0;border:none;border-radius:8px;cursor:pointer">Chiudi</button>
+    </div>
+  </div>`;
   document.body.appendChild(modal);
 }
 
-// Importa schede da file .json oppure da testo base64 incollato
 function backupImport(input){
-  const file=input.files[0];
-  if(!file) return;
+  const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=function(e){
     try{
       let testo=e.target.result.trim();
-      // Se è base64 (dal modal copia/incolla), decodifica prima
-      if(!testo.startsWith('{') && !testo.startsWith('[')){
-        try{ testo=decodeURIComponent(escape(atob(testo))); }catch(ex){}
+      if(!testo.startsWith('{')&&!testo.startsWith('[')){
+        try{testo=decodeURIComponent(escape(atob(testo)));}catch(ex){}
       }
       const raw=JSON.parse(testo);
       const schede=Array.isArray(raw)?raw:(raw.schede&&Array.isArray(raw.schede)?raw.schede:null);
       if(!schede||!schede.length){showToast('File non valido o vuoto','error');return;}
       let aggiunte=0,aggiornate=0;
       schede.forEach(imp=>{
-        if(!imp.id||!imp.type||!imp.data) return;
+        if(!imp.id||!imp.type||!imp.data)return;
         const idx=savedForms.findIndex(f=>f.id===imp.id);
         if(idx<0){savedForms.push(imp);aggiunte++;}
         else if(imp.savedAt>savedForms[idx].savedAt){savedForms[idx]=imp;aggiornate++;}
@@ -2016,5 +2057,6 @@ function backupImport(input){
   };
   reader.readAsText(file,'utf-8');
 }
+
 
 renderHomeSaved();
