@@ -1561,29 +1561,24 @@ function buildPDFOrd(f){
 
   const css=`
     *{box-sizing:border-box;margin:0;padding:0}
-    html{font-size:9pt}
-    body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#111;background:#fff}
+    html{font-size:11pt}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:11pt;color:#111;background:#fff}
 
     /* Screen: mostra a 270mm con font normali */
     .wrap{width:270mm;margin:0 auto;padding:6mm 7mm}
 
     table{width:100%;border-collapse:collapse}
-    td,th{border:1px solid #999;padding:2px 5px;vertical-align:middle;font-size:8.5pt}
-    .sh{background:#c8e6c9;font-weight:700;text-align:center;font-size:8pt;
+    td,th{border:1px solid #999;padding:4px 7px;vertical-align:middle;font-size:10pt}
+    .sh{background:#c8e6c9;font-weight:700;text-align:center;font-size:9.5pt;
         letter-spacing:0.07em;text-transform:uppercase;padding:3px;border:1.5px solid #2d6b2d}
-    .shb{background:#bbdefb;font-weight:700;text-align:center;font-size:8pt;
+    .shb{background:#bbdefb;font-weight:700;text-align:center;font-size:9.5pt;
          letter-spacing:0.07em;text-transform:uppercase;padding:3px;border:1.5px solid #1565c0;color:#0d2660}
-    .lbl{background:#eef2ee;font-weight:700;font-size:8pt;white-space:nowrap}
-    .mono{font-family:'Courier New',monospace;font-weight:700;font-size:9pt}
-    .sec{background:#ddd;font-weight:700;font-size:8pt;text-align:center;
+    .lbl{background:#eef2ee;font-weight:700;font-size:9.5pt;white-space:nowrap}
+    .mono{font-family:'Courier New',monospace;font-weight:700;font-size:11pt}
+    .sec{background:#ddd;font-weight:700;font-size:9.5pt;text-align:center;
          padding:2px;border:1px solid #aaa;text-transform:uppercase;letter-spacing:0.05em}
-    .rbox{padding:4px 8px;font-weight:700;font-size:8.5pt;
+    .rbox{padding:4px 8px;font-weight:700;font-size:10pt;
           background:${rBg};color:${rColor};border:2px solid ${rColor};border-radius:3px;display:inline-block}
-    .pbtn-wrap{position:fixed;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:99}
-    .pbtn{background:#1a2e1a;color:#fff;border:none;
-          padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px;
-          box-shadow:0 3px 12px rgba(0,0,0,.3);width:100%;text-align:center}
-    .pbtn-blue{background:#1565c0}
     .foot{margin-top:5px;font-size:7pt;color:#999;border-top:1px solid #ddd;
           padding-top:3px;display:flex;justify-content:space-between}
 
@@ -1591,7 +1586,6 @@ function buildPDFOrd(f){
 
     /* Stampa: scala 270mm → 210mm mantenendo font leggibili */
     @media print{
-      .pbtn-wrap{display:none}
       html,body{margin:0;padding:0}
       @page{margin:0;size:A4 portrait}
       .wrap{
@@ -1609,53 +1603,6 @@ function buildPDFOrd(f){
   <title>ARETE – ORD – ${vv(d.id_albero)}</title>
   <style>${css}</style></head>
   <body>
-  <div class="pbtn-wrap">
-    <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
-    <button class="pbtn pbtn-blue" id="btn-condividi" onclick="condividiComePDF(this)">📤 Condividi PDF</button>
-  </div>
-  <script>
-  function condividiComePDF(btn){
-    btn.disabled=true; btn.textContent='⏳ Generazione...';
-    var nome=(document.title||'ARETE_scheda')+'.pdf';
-    // Metodo 1: blob PDF già pronto nell'app principale
-    if(window.opener && window.opener._sharedPDFBlob){
-      var entry=window.opener._sharedPDFBlob;
-      btn.disabled=false; btn.textContent='📤 Condividi PDF';
-      inviaPDF(entry.blob, entry.nome);
-      return;
-    }
-    // Metodo 2: genera il PDF usando l'app principale
-    if(window.opener && window.opener.generaPDFBlob && window.opener._pdfDataForShare){
-      window.opener.generaPDFBlob(window.opener._pdfDataForShare.f, nome).then(function(blob){
-        btn.disabled=false; btn.textContent='📤 Condividi PDF';
-        if(blob){ inviaPDF(blob, nome); } else { fallbackStampa(btn); }
-      });
-      return;
-    }
-    // Fallback: non disponibile in APK senza popup
-    btn.disabled=false; btn.textContent='📤 Condividi PDF';
-    fallbackStampa(btn);
-  }
-  function inviaPDF(blob, nome){
-    var file=new File([blob],nome,{type:'application/pdf'});
-    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({title:nome,files:[file]}).catch(function(e){
-        if(e.name!=='AbortError') scaricaBlob(blob,nome);
-      });
-    } else {
-      scaricaBlob(blob,nome);
-    }
-  }
-  function scaricaBlob(blob,nome){
-    var u=URL.createObjectURL(blob);
-    var a=document.createElement('a');a.href=u;a.download=nome;
-    document.body.appendChild(a);a.click();
-    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
-  }
-  function fallbackStampa(btn){
-    alert('Per condividere: usa prima Stampa → Salva come PDF, poi condividi il file dal gestore file.');
-  }
-  </script>
   <div class="wrap">
   <table>
 
@@ -1931,16 +1878,10 @@ function buildPDF(f){
         letter-spacing:0.07em;text-transform:uppercase;border:1.5px solid #2d6b2d;padding:3px}
     .lbl{background:#eef2ee;font-weight:700;font-size:8.5pt;white-space:nowrap}
     .mono{font-family:'Courier New',monospace;font-weight:700;font-size:9.5pt}
-    .pbtn-wrap{position:fixed;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:99}
-    .pbtn{background:#1a2e1a;color:#fff;border:none;
-          padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px;
-          box-shadow:0 3px 12px rgba(0,0,0,.3);width:100%;text-align:center}
-    .pbtn-blue{background:#1565c0}
     .foot{margin-top:6px;font-size:7.5pt;color:#aaa;border-top:1px solid #ddd;
           padding-top:3px;display:flex;justify-content:space-between}
     @media screen{.page{box-shadow:0 2px 24px rgba(0,0,0,.12)}}
     @media print{
-      .pbtn-wrap{display:none}
       html,body{margin:0;padding:0}
       @page{margin:0;size:A4 portrait}
       .page{
@@ -1951,53 +1892,6 @@ function buildPDF(f){
     }
   </style></head>
   <body>
-  <div class="pbtn-wrap">
-    <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
-    <button class="pbtn pbtn-blue" id="btn-condividi" onclick="condividiComePDF(this)">📤 Condividi PDF</button>
-  </div>
-  <script>
-  function condividiComePDF(btn){
-    btn.disabled=true; btn.textContent='⏳ Generazione...';
-    var nome=(document.title||'ARETE_scheda')+'.pdf';
-    // Metodo 1: blob PDF già pronto nell'app principale
-    if(window.opener && window.opener._sharedPDFBlob){
-      var entry=window.opener._sharedPDFBlob;
-      btn.disabled=false; btn.textContent='📤 Condividi PDF';
-      inviaPDF(entry.blob, entry.nome);
-      return;
-    }
-    // Metodo 2: genera il PDF usando l'app principale
-    if(window.opener && window.opener.generaPDFBlob && window.opener._pdfDataForShare){
-      window.opener.generaPDFBlob(window.opener._pdfDataForShare.f, nome).then(function(blob){
-        btn.disabled=false; btn.textContent='📤 Condividi PDF';
-        if(blob){ inviaPDF(blob, nome); } else { fallbackStampa(btn); }
-      });
-      return;
-    }
-    // Fallback: non disponibile in APK senza popup
-    btn.disabled=false; btn.textContent='📤 Condividi PDF';
-    fallbackStampa(btn);
-  }
-  function inviaPDF(blob, nome){
-    var file=new File([blob],nome,{type:'application/pdf'});
-    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({title:nome,files:[file]}).catch(function(e){
-        if(e.name!=='AbortError') scaricaBlob(blob,nome);
-      });
-    } else {
-      scaricaBlob(blob,nome);
-    }
-  }
-  function scaricaBlob(blob,nome){
-    var u=URL.createObjectURL(blob);
-    var a=document.createElement('a');a.href=u;a.download=nome;
-    document.body.appendChild(a);a.click();
-    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
-  }
-  function fallbackStampa(btn){
-    alert('Per condividere: usa prima Stampa → Salva come PDF, poi condividi il file dal gestore file.');
-  }
-  </script>
   <div class="page">
   <table>
     <tr>
