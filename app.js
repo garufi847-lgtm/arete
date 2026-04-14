@@ -511,15 +511,35 @@ function buildTRGP(){
     <div class="form-section-header"><span class="section-icon">🧪</span>Condizioni di Salute e Vigoria</div>
     <div class="form-grid">
       <div class="form-field"><label class="form-label">Condizioni</label>${makeSelect('condiz_salute',DATA.condizSalute,'Condizioni...',d.condiz_salute)}</div>
-      <div class="form-row cols-2">
-        <div class="form-field"><label class="form-label">Monitoraggio</label>${makeSelect('monitoraggio',DATA.monitoraggio,'Freq...',d.monitoraggio)}</div>
-        <div class="form-field"><label class="form-label">Urgenza</label>${makeSelect('urgenza',DATA.urgenza,'Urgenza...',d.urgenza)}</div>
-      </div>
     </div>
   </div>
   <div class="form-section">
     <div class="form-section-header"><span class="section-icon">📊</span>Triage del Rischio (R)</div>
     <div class="form-grid"><div class="form-field"><div class="computed-field highlight" id="result-trgp">${riskHTML('trgp')}</div></div></div>
+  </div>
+  <div class="form-section">
+    <div class="form-section-header"><span class="section-icon">✂️</span>Prescrizioni Indicative ed Eventuali Prescrizioni Urgenti</div>
+    <div class="diag-table-wrap">
+      <table class="diag-table presc-table">
+        <thead><tr>
+          <th>Interventi Colturali</th><th>Urgenza</th>
+          <th>Mitigazione Bersaglio</th>
+          <th>Prescrizioni Valutative</th><th>Urg/Monit</th>
+        </tr></thead>
+        <tbody>
+          ${[1,2,3].map(i=>{
+            const ki=`presc_int_${i}`,ku=`presc_urg_${i}`,km=`presc_mit_${i}`,kv=`presc_val_${i}`,krm=`presc_urgm_${i}`;
+            return `<tr>
+              <td><select class="form-select diag-sel" name="${ki}" onchange="onFieldChange('${ki}',this.value)"><option value=""></option>${DATA.prescColturali.map(o=>`<option value="${o}" ${d[ki]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${ku}" onchange="onFieldChange('${ku}',this.value)"><option value=""></option>${DATA.urgenza.map(o=>`<option value="${o}" ${d[ku]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${km}" onchange="onFieldChange('${km}',this.value)"><option value=""></option>${DATA.mitigazBersaglio.map(o=>`<option value="${o}" ${d[km]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${kv}" onchange="onFieldChange('${kv}',this.value)"><option value=""></option>${DATA.prescValutative.map(o=>`<option value="${o}" ${d[kv]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${krm}" onchange="onFieldChange('${krm}',this.value)"><option value=""></option>${DATA.monitoraggio.map(o=>`<option value="${o}" ${d[krm]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   </div>
   <div class="form-section">
     <div class="form-section-header"><span class="section-icon">📝</span>Note</div>
@@ -568,15 +588,35 @@ function buildTRGS(){
     <div class="form-section-header"><span class="section-icon">🧪</span>Condizioni di Salute e Vigoria</div>
     <div class="form-grid">
       <div class="form-field"><label class="form-label">Condizioni</label>${makeSelect('condiz_salute',DATA.condizSalute,'Condizioni...',d.condiz_salute)}</div>
-      <div class="form-row cols-2">
-        <div class="form-field"><label class="form-label">Monitoraggio</label>${makeSelect('monitoraggio',DATA.monitoraggio,'Freq...',d.monitoraggio)}</div>
-        <div class="form-field"><label class="form-label">Urgenza</label>${makeSelect('urgenza',DATA.urgenza,'Urgenza...',d.urgenza)}</div>
-      </div>
     </div>
   </div>
   <div class="form-section">
     <div class="form-section-header"><span class="section-icon">📊</span>Triage del Rischio (R)</div>
     <div class="form-grid"><div class="form-field"><div class="computed-field highlight" id="result-trgs">${riskHTML('trgs')}</div></div></div>
+  </div>
+  <div class="form-section">
+    <div class="form-section-header"><span class="section-icon">✂️</span>Prescrizioni Indicative ed Eventuali Prescrizioni Urgenti</div>
+    <div class="diag-table-wrap">
+      <table class="diag-table presc-table">
+        <thead><tr>
+          <th>Interventi Colturali</th><th>Urgenza</th>
+          <th>Mitigazione Bersaglio</th>
+          <th>Prescrizioni Valutative</th><th>Urg/Monit</th>
+        </tr></thead>
+        <tbody>
+          ${[1,2,3].map(i=>{
+            const ki=`presc_int_${i}`,ku=`presc_urg_${i}`,km=`presc_mit_${i}`,kv=`presc_val_${i}`,krm=`presc_urgm_${i}`;
+            return `<tr>
+              <td><select class="form-select diag-sel" name="${ki}" onchange="onFieldChange('${ki}',this.value)"><option value=""></option>${DATA.prescColturali.map(o=>`<option value="${o}" ${d[ki]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${ku}" onchange="onFieldChange('${ku}',this.value)"><option value=""></option>${DATA.urgenza.map(o=>`<option value="${o}" ${d[ku]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${km}" onchange="onFieldChange('${km}',this.value)"><option value=""></option>${DATA.mitigazBersaglio.map(o=>`<option value="${o}" ${d[km]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${kv}" onchange="onFieldChange('${kv}',this.value)"><option value=""></option>${DATA.prescValutative.map(o=>`<option value="${o}" ${d[kv]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+              <td><select class="form-select diag-sel" name="${krm}" onchange="onFieldChange('${krm}',this.value)"><option value=""></option>${DATA.monitoraggio.map(o=>`<option value="${o}" ${d[krm]===o?'selected':''}>${o}</option>`).join('')}</select></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   </div>
   <div class="form-section">
     <div class="form-section-header"><span class="section-icon">📝</span>Note</div>
@@ -1290,9 +1330,39 @@ async function shareSaved(id){
         }
       }
     } else {
-      if(d.monitoraggio||d.urgenza){
-        sezione('Prescrizioni', VERDE_M);
-        row2('Monitoraggio',d.monitoraggio,'Urgenza',d.urgenza,70);
+      // TRG-P e TRG-S: stessa tabella prescrizioni completa
+      const hasPres=[1,2,3].some(i=>d[`presc_int_${i}`]||d[`presc_mit_${i}`]||d[`presc_val_${i}`]);
+      if(hasPres){
+        sezione('Prescrizioni Indicative ed Eventuali Prescrizioni Urgenti', VERDE_M);
+        checkY(14);
+        const pcols=[{t:'INTERVENTI COLTURALI',w:CW*0.32},{t:'URGENZA',w:CW*0.09},{t:'MITIGAZIONE BERSAGLIO',w:CW*0.23},{t:'PRESCRIZIONI VALUTATIVE',w:CW*0.24},{t:'URG/MONIT',w:CW*0.12}];
+        let px=ML;
+        pcols.forEach(({t,w})=>{
+          doc.setFillColor(...GRIGIO);doc.rect(px,Y,w,14,'F');bordo(px,Y,w,14);
+          doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(...VERDE_M);
+          doc.text(t,px+w/2,Y+9,{align:'center'});
+          px+=w;
+        });
+        Y+=14;
+        for(let i=1;i<=3;i++){
+          const ki=d[`presc_int_${i}`]||'',ku=d[`presc_urg_${i}`]||'',km=d[`presc_mit_${i}`]||'';
+          const kv=d[`presc_val_${i}`]||'',krm=d[`presc_urgm_${i}`]||'';
+          if(!ki&&!km&&!kv) continue;
+          const maxL=Math.max(
+            doc.splitTextToSize(ki,pcols[0].w-4).length,
+            doc.splitTextToSize(km,pcols[2].w-4).length,
+            doc.splitTextToSize(kv,pcols[3].w-4).length
+          );
+          const rH=Math.max(14,maxL*9+4);
+          checkY(rH);px=ML;
+          [[ki,pcols[0].w],[ku,pcols[1].w],[km,pcols[2].w],[kv,pcols[3].w],[krm,pcols[4].w]].forEach(([v,w])=>{
+            bordo(px,Y,w,rH);
+            doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...NERO);
+            doc.text(doc.splitTextToSize(v,w-4),px+2,Y+9,{lineHeightFactor:1.3});
+            px+=w;
+          });
+          Y+=rH;
+        }
       }
     }
 
@@ -1846,7 +1916,30 @@ function buildPDF(f){
       <td colspan="4"></td>
     </tr>`).join('')}
     <tr><td colspan="6" style="padding:8px;background:${rBg};color:${rColor};font-weight:700;border:2px solid ${rColor}">${rText}</td></tr>
-    ${d.monitoraggio||d.urgenza?`<tr><td class="lbl">Monitoraggio</td><td colspan="2">${vv(d.monitoraggio)}</td><td class="lbl">Urgenza</td><td colspan="2">${vv(d.urgenza)}</td></tr>`:''}
+    ${(()=>{
+      const hasPres=[1,2,3].some(i=>d[`presc_int_${i}`]||d[`presc_mit_${i}`]||d[`presc_val_${i}`]);
+      if(!hasPres) return '';
+      return `<tr><td colspan="6" class="sh">PRESCRIZIONI INDICATIVE ED EVENTUALI PRESCRIZIONI URGENTI</td></tr>
+      <tr>
+        <td colspan="2" class="lbl" style="text-align:center;font-size:7.5pt">INTERVENTI COLTURALI</td>
+        <td class="lbl" style="text-align:center;font-size:7.5pt;width:9%">URGENZA</td>
+        <td class="lbl" style="text-align:center;font-size:7.5pt">MITIGAZIONE BERSAGLIO</td>
+        <td class="lbl" style="text-align:center;font-size:7.5pt">PRESCR. VALUTATIVE</td>
+        <td class="lbl" style="text-align:center;font-size:7.5pt;width:9%">URG/MONIT</td>
+      </tr>
+      ${[1,2,3].map(i=>{
+        const ki=d[`presc_int_${i}`]||'',ku=d[`presc_urg_${i}`]||'',km=d[`presc_mit_${i}`]||'';
+        const kv=d[`presc_val_${i}`]||'',krm=d[`presc_urgm_${i}`]||'';
+        if(!ki&&!km&&!kv) return '';
+        return `<tr>
+          <td colspan="2" style="font-size:7.5pt;padding:3px 4px">${ki}</td>
+          <td style="font-size:7.5pt;padding:3px 4px;text-align:center">${ku}</td>
+          <td style="font-size:7.5pt;padding:3px 4px">${km}</td>
+          <td style="font-size:7.5pt;padding:3px 4px">${kv}</td>
+          <td style="font-size:7.5pt;padding:3px 4px;text-align:center">${krm}</td>
+        </tr>`;
+      }).join('')}`;
+    })()}
     <tr><td class="lbl">NOTE</td><td colspan="5" style="min-height:36px;padding:8px">${vv(d.note)}</td></tr>
   </table>
   <div class="foot">
