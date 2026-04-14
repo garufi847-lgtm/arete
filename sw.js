@@ -1,4 +1,4 @@
-const CACHE = 'arete-v12';
+const CACHE = 'arete-v13';
 const FILES = [
   './index.html',
   './app.js',

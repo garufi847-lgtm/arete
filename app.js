@@ -922,7 +922,6 @@ function renderArchive(){
       <div class="archive-card-footer">
         <button class="btn-sm primary" onclick="openSaved('${f.id}')">✏️ Modifica</button>
         <button class="btn-sm" onclick="exportPDF('${f.id}')">📄 PDF</button>
-        <button class="btn-sm" style="background:#1565c0;color:#fff" onclick="shareSaved('${f.id}')">📤 Condividi</button>
         <button class="btn-sm danger" onclick="deleteSaved(null,'${f.id}')">🗑 Elimina</button>
       </div>
     </div>`;
@@ -2020,7 +2019,7 @@ async function exportPDF(id){
   if(w){ w.document.write(html); w.document.close(); }
   else { salvaPDFBlob(blob, nomePulito+'.html'); }
 
-  // Ricostruisci il modal con il pulsante Condividi visibile
+  // Ricostruisci il modal con Condividi visibile — delay più lungo per Android
   setTimeout(()=>{
     const sp=(f.data.specie||'').split(' - ')[0]||'';
     const modal=sel('export-modal');
@@ -2032,7 +2031,7 @@ async function exportPDF(id){
       <div class="export-options">
         <div class="export-option" onclick="exportPDF('${id}')">
           <div class="export-icon">📄</div>
-          <div class="export-info"><h4>PDF generato ✅</h4><p>Premi per rigenerare con nuovo nome</p></div>
+          <div class="export-info"><h4>PDF generato ✅</h4><p>Premi per rigenerare con altro nome</p></div>
         </div>
         <div class="export-option" onclick="condividiPDFGenerato('${id}')">
           <div class="export-icon">📤</div>
@@ -2045,7 +2044,7 @@ async function exportPDF(id){
       </div>`;
     modal.classList.remove('hidden');
     showToast('PDF pronto — premi Condividi per inviarlo','success');
-  },400);
+  }, 800);
 }
 
 // Condividi il PDF già generato con exportPDF
