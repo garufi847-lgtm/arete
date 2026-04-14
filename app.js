@@ -1930,8 +1930,16 @@ function buildPDF(f){
     <tr><td class="lbl">H</td><td class="mono">${vv(d.h_albero)}</td><td class="lbl">D tr</td><td class="mono">${vv(d.d_tronco)}</td><td class="lbl">Circ 🔁</td><td class="mono">${mv(circ,1)}</td></tr>
     <tr><td class="lbl">D ch</td><td class="mono">${vv(d.d_chioma)}</td><td class="lbl">D br</td><td class="mono">${vv(d.d_branca)}</td><td class="lbl">L br</td><td class="mono">${vv(d.l_branca)}</td></tr>
     <tr><td class="lbl">H br</td><td class="mono">${vv(d.h_branca)}</td><td class="lbl">H bers</td><td class="mono">${vv(d.h_bersaglio)}</td><td colspan="2"></td></tr>
-    ${bio!==null?`<tr><td class="lbl">Valore ecologico</td><td>Bio: <span class="mono">${mv(bio,0)}</span> kg</td><td class="lbl">CO₂</td><td class="mono">${mv(co2,0)}</td><td class="lbl">O₂</td><td class="mono">${mv(o2,0)}</td></tr>`:''}
-    <tr><td class="lbl">Condiz. Salute</td><td colspan="5" style="font-size:8pt">${vv(d.condiz_salute)}</td></tr>
+    ${bio!==null?`<tr>
+      <td class="lbl">Bio (kg)</td><td class="mono">${mv(bio,0)}</td>
+      <td class="lbl">CO₂</td><td class="mono">${mv(co2,0)}</td>
+      <td class="lbl">O₂</td><td class="mono">${mv(o2,0)}</td>
+    </tr>`:''}
+    ${(()=>{const ve=calcValoreEcologico(bio,co2,o2,ia);const vc=calcValoreComplessivo(ve,bio,d.condiz_salute);if(ve===null||bio===null)return '';const veStr=fmtEuro(ve);const vcStr=fmtEuro(vc);return '<tr>'
+      +'<td style="background:#e8f5e9;border:1px solid #81c784;padding:4px 6px"><div style="font-size:7pt;font-weight:700;color:#2e7d32;text-transform:uppercase">Valore ecologico</div><div style="font-size:11pt;font-weight:900;color:#1b5e20;font-family:monospace">'+veStr+'</div></td>'
+      +'<td colspan="2" style="background:#e3f2fd;border:1px solid #90caf9;padding:4px 6px"><div style="font-size:7pt;font-weight:700;color:#1565c0;text-transform:uppercase">Valore complessivo</div><div style="font-size:11pt;font-weight:900;color:#0d47a1;font-family:monospace">'+vcStr+'</div></td>'
+      +'<td colspan="3" style="font-size:7pt;color:#777;padding:4px;vertical-align:middle">Val.ecol.=Bio\u00d70.55+CO\u2082+O\u2082\u00d75+I.A.\u00d710<br>Val.compl.=Val.ecol.+Val.ornamentale</td>'
+      +'</tr>';})()}    <tr><td class="lbl">Condiz. Salute</td><td colspan="5" style="font-size:8pt">${vv(d.condiz_salute)}</td></tr>
     <tr><td colspan="6" class="sh">GRADO DI PERICOLO PERCEPITO (P)</td></tr>
     ${pericoloFields.map(([l,v])=>`<tr>
       <td class="lbl" style="width:28%">${l}</td>
@@ -1994,27 +2002,24 @@ async function exportPDF(id){
   const nomeSug='ARETE_'+f.type.toUpperCase()+'_'+(idAlb||specie||'scheda').replace(/[^a-zA-Z0-9]/g,'_').slice(0,30)+'_'+dataVal;
   const nomeInput=prompt('Nome del file PDF:',nomeSug);
   if(nomeInput===null) return;
-  const nomeFile=(nomeInput.trim()||nomeSug).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_')+'.pdf';
-  const nomePulito=nomeFile.replace(/\.pdf$/i,'');
-  const isAndroid=/Android/i.test(navigator.userAgent);
-  const isMedian=typeof medianDownloadBlobUrl==='function'||(!!window.median);
-  if(isAndroid||isMedian){
-    showToast('Generazione PDF...');
-    const pdfBlob=await generaPDFBlob(f,nomeFile);
-    if(pdfBlob){salvaPDFBlob(pdfBlob,nomeFile);return;}
-  }
-  const w=window.open('','_blank');
-  if(!w){
-    showToast('Generazione PDF...');
-    const pdfBlob=await generaPDFBlob(f,nomeFile);
-    if(pdfBlob){salvaPDFBlob(pdfBlob,nomeFile);return;}
-    showToast('Consenti i popup nel browser','error');return;
-  }
+  const nomePulito=(nomeInput.trim()||nomeSug).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_');
+  const nomeFile=nomePulito+'.pdf';
+
+  // Genera HTML fedele e aprilo — uguale su desktop e Android
   const html=buildPDF(f)
     .replace(/onclick="window\.print\(\)"/,'onclick="document.title=\''+nomePulito+'\';window.print()"')
     .replace('<title>ARETE','<title>'+nomePulito);
-  w.document.write(html);w.document.close();
-  showToast('PDF aperto – Stampa → Salva come PDF','success');
+
+  const w=window.open('','_blank');
+  if(w){
+    w.document.write(html);w.document.close();
+    showToast('PDF aperto – Stampa → Salva come PDF','success');
+    return;
+  }
+  // Popup bloccato o Android WebView → scarica come blob HTML (stampabile)
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  salvaPDFBlob(blob,nomePulito+'.html');
+  showToast('Apri il file e usa Stampa → Salva come PDF','success');
 }
 function exportAllPDF(){
   if(!savedForms.length){showToast('Nessuna scheda','error');return;}
@@ -2161,6 +2166,50 @@ async function generaPDFBlob(f,nomeFile){
       const lbl=f.type==='ord'?('RISCHIO ATTUALE \u2013 Classe '+rc+' \u2013 '+info.label.toUpperCase()):('TRIAGE RISCHIO \u2013 '+(DATA.triageRischio[rc]||'').toUpperCase());
       doc.text(lbl,PW/2,Y+10,{align:'center'});doc.setTextColor(...NERO);doc.setDrawColor(...BORDO);Y+=18;
     }
+
+    // ── VALUTAZIONE BERSAGLIO E IMPULSO ────────────────────────────────────
+    sezione('Valutazione Bersaglio e Impulso',VERDE_M);
+    const imp_alb=calcImpulsoAlbero(circ,d.h_albero,d.h_bersaglio);
+    const imp_ram=calcImpulsoRamo(d.d_branca,d.l_branca,d.h_branca,d.h_bersaglio);
+    const cls_alb=classeImpulso(imp_alb);
+    const cls_ram=classeImpulso(imp_ram);
+    row2('Tipo Bersaglio',d.tipo_bersaglio,'Classe Bersaglio',d.classe_bersaglio,80);
+    row4([['Imp.Albero (kgm/s)',imp_alb!==null?fmtN(imp_alb,0):'\u2014'],['Classe',String(cls_alb)],['Imp.Rami (kgm/s)',imp_ram!==null?fmtN(imp_ram,0):'\u2014'],['Classe',String(cls_ram)]]);
+
+    // ── PRESCRIZIONI ────────────────────────────────────────────────────────
+    const hasPres=[1,2,3].some(i=>d[`presc_int_${i}`]||d[`presc_mit_${i}`]||d[`presc_val_${i}`]);
+    if(hasPres){
+      sezione('Prescrizioni Indicative ed Eventuali Prescrizioni Urgenti',VERDE_M);
+      checkY(13);
+      const pcols=[{t:'INTERVENTI COLTURALI',w:CW*0.34},{t:'URGENZA',w:CW*0.10},{t:'MITIGAZIONE BERSAGLIO',w:CW*0.22},{t:'PRESCR. VALUTATIVE',w:CW*0.22},{t:'URG/MONIT',w:CW*0.12}];
+      let px=ML;
+      pcols.forEach(({t,w})=>{
+        doc.setFillColor(...GRIGIO);doc.rect(px,Y,w,13,'F');bordo(px,Y,w,13);
+        doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(...VERDE_M);
+        doc.text(t,px+w/2,Y+8.5,{align:'center'});px+=w;
+      });
+      Y+=13;
+      for(let i=1;i<=3;i++){
+        const ki=d[`presc_int_${i}`]||'',ku=d[`presc_urg_${i}`]||'',km=d[`presc_mit_${i}`]||'';
+        const kv=d[`presc_val_${i}`]||'',krm=d[`presc_urgm_${i}`]||'';
+        if(!ki&&!km&&!kv) continue;
+        const maxL=Math.max(
+          doc.splitTextToSize(ki,pcols[0].w-3).length,
+          doc.splitTextToSize(km,pcols[2].w-3).length,
+          doc.splitTextToSize(kv,pcols[3].w-3).length
+        );
+        const rH=Math.max(13,maxL*8+4);
+        checkY(rH);px=ML;
+        [[ki,pcols[0].w],[ku,pcols[1].w],[km,pcols[2].w],[kv,pcols[3].w],[krm,pcols[4].w]].forEach(([v,w])=>{
+          bordo(px,Y,w,rH);
+          doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(...NERO);
+          doc.text(doc.splitTextToSize(v,w-3),px+2,Y+8,{lineHeightFactor:1.25});
+          px+=w;
+        });
+        Y+=rH;
+      }
+    }
+
     // Note
     if(d.note){
       sezione('Note',VERDE_M);checkY(18);
@@ -2277,9 +2326,10 @@ function mostraMenuCondivisione(f, nomeSuggerito, titolo, specie, dataVal, idAlb
       const nomeFile=(inputNome.value.trim()||nomeSuggerito).replace(/\.pdf$/i,'').replace(/[<>:"\/\\|?*]/g,'_')+'.pdf';
       overlay.remove();
       showToast('Generazione PDF...');
-      const pdfBlob=await generaPDFBlob(f, nomeFile);
-      if(!pdfBlob){showToast('Errore generazione PDF','error');return;}
-      const pdfFile=new File([pdfBlob],nomeFile,{type:'application/pdf'});
+      // Usa buildPDF HTML (stesso del tasto PDF) per avere PDF identici
+      const html=buildPDF(f);
+      const pdfBlob=new Blob([html],{type:'text/html;charset=utf-8'});
+      const pdfFile=new File([pdfBlob],nomeFile.replace(/\.pdf$/,'.html'),{type:'text/html'});
       const pdfUrl=URL.createObjectURL(pdfBlob);
       setTimeout(function(){URL.revokeObjectURL(pdfUrl);},300000);
       if(o.act==='drive'){
