@@ -1579,9 +1579,11 @@ function buildPDFOrd(f){
          padding:2px;border:1px solid #aaa;text-transform:uppercase;letter-spacing:0.05em}
     .rbox{padding:4px 8px;font-weight:700;font-size:8.5pt;
           background:${rBg};color:${rColor};border:2px solid ${rColor};border-radius:3px;display:inline-block}
-    .pbtn{position:fixed;top:12px;right:12px;background:#1a2e1a;color:#fff;border:none;
+    .pbtn-wrap{position:fixed;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:99}
+    .pbtn{background:#1a2e1a;color:#fff;border:none;
           padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px;
-          box-shadow:0 3px 12px rgba(0,0,0,.3);z-index:99}
+          box-shadow:0 3px 12px rgba(0,0,0,.3);width:100%;text-align:center}
+    .pbtn-blue{background:#1565c0}
     .foot{margin-top:5px;font-size:7pt;color:#999;border-top:1px solid #ddd;
           padding-top:3px;display:flex;justify-content:space-between}
 
@@ -1589,7 +1591,7 @@ function buildPDFOrd(f){
 
     /* Stampa: scala 270mm → 210mm mantenendo font leggibili */
     @media print{
-      .pbtn{display:none}
+      .pbtn-wrap{display:none}
       html,body{margin:0;padding:0}
       @page{margin:0;size:A4 portrait}
       .wrap{
@@ -1607,7 +1609,25 @@ function buildPDFOrd(f){
   <title>ARETE – ORD – ${vv(d.id_albero)}</title>
   <style>${css}</style></head>
   <body>
-  <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+  <div class="pbtn-wrap">
+    <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+    <button class="pbtn pbtn-blue" onclick="(function(){
+      var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
+      var nome=document.title||'ARETE_scheda';
+      var file=new File([blob],nome+'.html',{type:'text/html'});
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        navigator.share({title:nome,files:[file]}).catch(function(e){if(e.name!=='AbortError'){
+          var u=URL.createObjectURL(blob);var a=document.createElement('a');
+          a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
+          setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
+        }});
+      } else {
+        var u=URL.createObjectURL(blob);var a=document.createElement('a');
+        a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
+        setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
+      }
+    })()">📤 Condividi</button>
+  </div>
   <div class="wrap">
   <table>
 
@@ -1883,14 +1903,16 @@ function buildPDF(f){
         letter-spacing:0.07em;text-transform:uppercase;border:1.5px solid #2d6b2d;padding:3px}
     .lbl{background:#eef2ee;font-weight:700;font-size:8.5pt;white-space:nowrap}
     .mono{font-family:'Courier New',monospace;font-weight:700;font-size:9.5pt}
-    .pbtn{position:fixed;top:12px;right:12px;background:#1a2e1a;color:#fff;border:none;
+    .pbtn-wrap{position:fixed;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:99}
+    .pbtn{background:#1a2e1a;color:#fff;border:none;
           padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:700;font-size:13px;
-          box-shadow:0 3px 12px rgba(0,0,0,.3);z-index:99}
+          box-shadow:0 3px 12px rgba(0,0,0,.3);width:100%;text-align:center}
+    .pbtn-blue{background:#1565c0}
     .foot{margin-top:6px;font-size:7.5pt;color:#aaa;border-top:1px solid #ddd;
           padding-top:3px;display:flex;justify-content:space-between}
     @media screen{.page{box-shadow:0 2px 24px rgba(0,0,0,.12)}}
     @media print{
-      .pbtn{display:none}
+      .pbtn-wrap{display:none}
       html,body{margin:0;padding:0}
       @page{margin:0;size:A4 portrait}
       .page{
@@ -1901,7 +1923,25 @@ function buildPDF(f){
     }
   </style></head>
   <body>
-  <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+  <div class="pbtn-wrap">
+    <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+    <button class="pbtn pbtn-blue" onclick="(function(){
+      var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
+      var nome=document.title||'ARETE_scheda';
+      var file=new File([blob],nome+'.html',{type:'text/html'});
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        navigator.share({title:nome,files:[file]}).catch(function(e){if(e.name!=='AbortError'){
+          var u=URL.createObjectURL(blob);var a=document.createElement('a');
+          a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
+          setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
+        }});
+      } else {
+        var u=URL.createObjectURL(blob);var a=document.createElement('a');
+        a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
+        setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
+      }
+    })()">📤 Condividi</button>
+  </div>
   <div class="page">
   <table>
     <tr>
