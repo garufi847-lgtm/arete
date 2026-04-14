@@ -1616,59 +1616,34 @@ function buildPDFOrd(f){
   <script>
   function condividiComePDF(btn){
     btn.disabled=true; btn.textContent='⏳ Generazione...';
-    var nome=document.title||'ARETE_scheda';
-    // Carica jsPDF se non presente
-    if(!window.jspdf){
-      var s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      s.onload=function(){generaPDFECondividi(nome,btn);};
-      s.onerror=function(){fallbackHTML(nome,btn);};
-      document.head.appendChild(s);
-    } else {
-      generaPDFECondividi(nome,btn);
+    var nome=(document.title||'ARETE_scheda')+'.pdf';
+    // Metodo 1: blob PDF già pronto nell'app principale
+    if(window.opener && window.opener._sharedPDFBlob){
+      var entry=window.opener._sharedPDFBlob;
+      btn.disabled=false; btn.textContent='📤 Condividi PDF';
+      inviaPDF(entry.blob, entry.nome);
+      return;
     }
-  }
-  function generaPDFECondividi(nome,btn){
-    try{
-      // Usa la funzione print-to-canvas di jsPDF: converte HTML in PDF
-      var doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
-      // jsPDF html() plugin non è disponibile nella versione base
-      // Usiamo l'approccio: cattura con html2canvas se disponibile, altrimenti fallback
-      if(window.html2canvas){
-        html2canvas(document.querySelector('.wrap')||document.body,{scale:1.5,useCORS:true}).then(function(canvas){
-          var imgData=canvas.toDataURL('image/jpeg',0.85);
-          var pw=doc.internal.pageSize.getWidth();
-          var ph=doc.internal.pageSize.getHeight();
-          var ratio=canvas.width/canvas.height;
-          var imgH=pw/ratio;
-          var pos=0;
-          doc.addImage(imgData,'JPEG',0,pos,pw,imgH);
-          while(imgH>ph){
-            pos-=ph; imgH-=ph;
-            doc.addPage();
-            doc.addImage(imgData,'JPEG',0,pos,pw,canvas.height*(pw/canvas.width));
-          }
-          inviaPDFBlob(doc.output('blob'),nome,btn);
-        }).catch(function(){fallbackHTML(nome,btn);});
-      } else {
-        // Carica html2canvas
-        var s2=document.createElement('script');
-        s2.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s2.onload=function(){generaPDFECondividi(nome,btn);};
-        s2.onerror=function(){fallbackHTML(nome,btn);};
-        document.head.appendChild(s2);
-      }
-    }catch(e){fallbackHTML(nome,btn);}
-  }
-  function inviaPDFBlob(blob,nome,btn){
+    // Metodo 2: genera il PDF usando l'app principale
+    if(window.opener && window.opener.generaPDFBlob && window.opener._pdfDataForShare){
+      window.opener.generaPDFBlob(window.opener._pdfDataForShare.f, nome).then(function(blob){
+        btn.disabled=false; btn.textContent='📤 Condividi PDF';
+        if(blob){ inviaPDF(blob, nome); } else { fallbackStampa(btn); }
+      });
+      return;
+    }
+    // Fallback: non disponibile in APK senza popup
     btn.disabled=false; btn.textContent='📤 Condividi PDF';
-    var file=new File([blob],nome+'.pdf',{type:'application/pdf'});
+    fallbackStampa(btn);
+  }
+  function inviaPDF(blob, nome){
+    var file=new File([blob],nome,{type:'application/pdf'});
     if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
       navigator.share({title:nome,files:[file]}).catch(function(e){
-        if(e.name!=='AbortError') scaricaBlob(blob,nome+'.pdf');
+        if(e.name!=='AbortError') scaricaBlob(blob,nome);
       });
     } else {
-      scaricaBlob(blob,nome+'.pdf');
+      scaricaBlob(blob,nome);
     }
   }
   function scaricaBlob(blob,nome){
@@ -1677,15 +1652,8 @@ function buildPDFOrd(f){
     document.body.appendChild(a);a.click();
     setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
   }
-  function fallbackHTML(nome,btn){
-    btn.disabled=false; btn.textContent='📤 Condividi PDF';
-    var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
-    var file=new File([blob],nome+'.html',{type:'text/html'});
-    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({title:nome,files:[file]}).catch(function(){});
-    } else {
-      scaricaBlob(blob,nome+'.html');
-    }
+  function fallbackStampa(btn){
+    alert('Per condividere: usa prima Stampa → Salva come PDF, poi condividi il file dal gestore file.');
   }
   </script>
   <div class="wrap">
@@ -1990,59 +1958,34 @@ function buildPDF(f){
   <script>
   function condividiComePDF(btn){
     btn.disabled=true; btn.textContent='⏳ Generazione...';
-    var nome=document.title||'ARETE_scheda';
-    // Carica jsPDF se non presente
-    if(!window.jspdf){
-      var s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      s.onload=function(){generaPDFECondividi(nome,btn);};
-      s.onerror=function(){fallbackHTML(nome,btn);};
-      document.head.appendChild(s);
-    } else {
-      generaPDFECondividi(nome,btn);
+    var nome=(document.title||'ARETE_scheda')+'.pdf';
+    // Metodo 1: blob PDF già pronto nell'app principale
+    if(window.opener && window.opener._sharedPDFBlob){
+      var entry=window.opener._sharedPDFBlob;
+      btn.disabled=false; btn.textContent='📤 Condividi PDF';
+      inviaPDF(entry.blob, entry.nome);
+      return;
     }
-  }
-  function generaPDFECondividi(nome,btn){
-    try{
-      // Usa la funzione print-to-canvas di jsPDF: converte HTML in PDF
-      var doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
-      // jsPDF html() plugin non è disponibile nella versione base
-      // Usiamo l'approccio: cattura con html2canvas se disponibile, altrimenti fallback
-      if(window.html2canvas){
-        html2canvas(document.querySelector('.wrap')||document.body,{scale:1.5,useCORS:true}).then(function(canvas){
-          var imgData=canvas.toDataURL('image/jpeg',0.85);
-          var pw=doc.internal.pageSize.getWidth();
-          var ph=doc.internal.pageSize.getHeight();
-          var ratio=canvas.width/canvas.height;
-          var imgH=pw/ratio;
-          var pos=0;
-          doc.addImage(imgData,'JPEG',0,pos,pw,imgH);
-          while(imgH>ph){
-            pos-=ph; imgH-=ph;
-            doc.addPage();
-            doc.addImage(imgData,'JPEG',0,pos,pw,canvas.height*(pw/canvas.width));
-          }
-          inviaPDFBlob(doc.output('blob'),nome,btn);
-        }).catch(function(){fallbackHTML(nome,btn);});
-      } else {
-        // Carica html2canvas
-        var s2=document.createElement('script');
-        s2.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s2.onload=function(){generaPDFECondividi(nome,btn);};
-        s2.onerror=function(){fallbackHTML(nome,btn);};
-        document.head.appendChild(s2);
-      }
-    }catch(e){fallbackHTML(nome,btn);}
-  }
-  function inviaPDFBlob(blob,nome,btn){
+    // Metodo 2: genera il PDF usando l'app principale
+    if(window.opener && window.opener.generaPDFBlob && window.opener._pdfDataForShare){
+      window.opener.generaPDFBlob(window.opener._pdfDataForShare.f, nome).then(function(blob){
+        btn.disabled=false; btn.textContent='📤 Condividi PDF';
+        if(blob){ inviaPDF(blob, nome); } else { fallbackStampa(btn); }
+      });
+      return;
+    }
+    // Fallback: non disponibile in APK senza popup
     btn.disabled=false; btn.textContent='📤 Condividi PDF';
-    var file=new File([blob],nome+'.pdf',{type:'application/pdf'});
+    fallbackStampa(btn);
+  }
+  function inviaPDF(blob, nome){
+    var file=new File([blob],nome,{type:'application/pdf'});
     if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
       navigator.share({title:nome,files:[file]}).catch(function(e){
-        if(e.name!=='AbortError') scaricaBlob(blob,nome+'.pdf');
+        if(e.name!=='AbortError') scaricaBlob(blob,nome);
       });
     } else {
-      scaricaBlob(blob,nome+'.pdf');
+      scaricaBlob(blob,nome);
     }
   }
   function scaricaBlob(blob,nome){
@@ -2051,15 +1994,8 @@ function buildPDF(f){
     document.body.appendChild(a);a.click();
     setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
   }
-  function fallbackHTML(nome,btn){
-    btn.disabled=false; btn.textContent='📤 Condividi PDF';
-    var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
-    var file=new File([blob],nome+'.html',{type:'text/html'});
-    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({title:nome,files:[file]}).catch(function(){});
-    } else {
-      scaricaBlob(blob,nome+'.html');
-    }
+  function fallbackStampa(btn){
+    alert('Per condividere: usa prima Stampa → Salva come PDF, poi condividi il file dal gestore file.');
   }
   </script>
   <div class="page">
@@ -2165,46 +2101,53 @@ async function exportPDF(id){
   if(nomeInput===null) return;
   const nomePulito=(nomeInput.trim()||nomeSug).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_');
 
-  // Genera HTML del PDF
   const html=(f.type==='ord'?buildPDFOrd(f):buildPDF(f))
     .replace(/onclick="window\.print\(\)"/g,'onclick="document.title=\''+nomePulito+'\';window.print()"')
     .replace(/<title>[^<]*/,'<title>'+nomePulito);
 
-  // Salva il blob per la condivisione successiva
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  _pdfBlobs[id]={blob, nome:nomePulito};
+  const isApk=typeof medianDownloadBlobUrl==='function'||(!!window.median)||/median/i.test(navigator.userAgent);
+  const w=!isApk?window.open('','_blank'):null;
 
-  // Apri/scarica il PDF
-  const w=window.open('','_blank');
-  if(w){ w.document.write(html); w.document.close(); }
-  else { salvaPDFBlob(blob, nomePulito+'.html'); }
-
-  // Ricostruisci il modal con Condividi visibile — delay più lungo per Android
-  setTimeout(()=>{
-    const sp=(f.data.specie||'').split(' - ')[0]||'';
-    const modal=sel('export-modal');
-    const content=sel('export-modal-content');
-    content.innerHTML=`
-      <div class="modal-handle"></div>
-      <div class="modal-title">Esporta Scheda</div>
-      <div class="modal-subtitle">${f.type.toUpperCase()} · ${sp} · ${f.data.data||''}</div>
-      <div class="export-options">
-        <div class="export-option" onclick="exportPDF('${id}')">
-          <div class="export-icon">📄</div>
-          <div class="export-info"><h4>PDF generato ✅</h4><p>Premi per rigenerare con altro nome</p></div>
-        </div>
-        <div class="export-option" onclick="condividiPDFGenerato('${id}')">
-          <div class="export-icon">📤</div>
-          <div class="export-info"><h4>Condividi PDF</h4><p>Invia su WhatsApp, Drive, Mail o salva</p></div>
-        </div>
-        <div class="export-option" onclick="exportJSON('${id}')">
-          <div class="export-icon">🗂</div>
-          <div class="export-info"><h4>JSON</h4><p>Dati strutturati di questa scheda</p></div>
-        </div>
-      </div>`;
-    modal.classList.remove('hidden');
-    showToast('PDF pronto — premi Condividi per inviarlo','success');
-  }, 800);
+  if(w){
+    // Browser: apri pagina HTML con pulsanti Stampa e Condividi
+    w.document.write(html); w.document.close();
+    // Pre-genera il PDF blob per il pulsante Condividi nella pagina
+    generaPDFBlob(f, nomePulito+'.pdf').then(function(pdfBlob){
+      window._sharedPDFBlob=pdfBlob?{blob:pdfBlob,nome:nomePulito+'.pdf'}:null;
+    });
+    showToast('PDF aperto','success');
+  } else {
+    // APK/WebView: genera PDF vero e mostra menu condivisione nell'app
+    showToast('Generazione PDF…');
+    generaPDFBlob(f, nomePulito+'.pdf').then(function(pdfBlob){
+      if(!pdfBlob){
+        // Fallback: scarica HTML
+        const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+        salvaPDFBlob(blob, nomePulito+'.html');
+        showToast('PDF scaricato','success');
+        return;
+      }
+      _pdfBlobs[id]={blob:pdfBlob, nome:nomePulito+'.pdf'};
+      // Mostra modal con Condividi
+      const sp=(f.data.specie||'').split(' - ')[0]||'';
+      const content=sel('export-modal-content');
+      content.innerHTML=`
+        <div class="modal-handle"></div>
+        <div class="modal-title">PDF Pronto ✅</div>
+        <div class="modal-subtitle">${f.type.toUpperCase()} · ${sp} · ${f.data.data||''}</div>
+        <div class="export-options">
+          <div class="export-option" onclick="condividiPDFGenerato('${id}')">
+            <div class="export-icon">📤</div>
+            <div class="export-info"><h4>Condividi PDF</h4><p>WhatsApp, Drive, Mail o salva locale</p></div>
+          </div>
+          <div class="export-option" onclick="exportPDF('${id}')">
+            <div class="export-icon">📄</div>
+            <div class="export-info"><h4>Rigenera PDF</h4><p>Genera con altro nome</p></div>
+          </div>
+        </div>`;
+      sel('export-modal').classList.remove('hidden');
+    });
+  }
 }
 
 // Condividi il PDF già generato con exportPDF
