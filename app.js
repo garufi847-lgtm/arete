@@ -519,26 +519,35 @@ function buildTRGP(){
   </div>
   <div class="form-section">
     <div class="form-section-header"><span class="section-icon">✂️</span>Prescrizioni Indicative ed Eventuali Prescrizioni Urgenti</div>
-    <div class="diag-table-wrap">
-      <table class="diag-table presc-table">
-        <thead><tr>
-          <th>Interventi Colturali</th><th>Urgenza</th>
-          <th>Mitigazione Bersaglio</th>
-          <th>Prescrizioni Valutative</th><th>Urg/Monit</th>
-        </tr></thead>
-        <tbody>
-          ${[1,2,3].map(i=>{
-            const ki=`presc_int_${i}`,ku=`presc_urg_${i}`,km=`presc_mit_${i}`,kv=`presc_val_${i}`,krm=`presc_urgm_${i}`;
-            return `<tr>
-              <td><select class="form-select diag-sel" name="${ki}" onchange="onFieldChange('${ki}',this.value)"><option value=""></option>${DATA.prescColturali.map(o=>`<option value="${o}" ${d[ki]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${ku}" onchange="onFieldChange('${ku}',this.value)"><option value=""></option>${DATA.urgenza.map(o=>`<option value="${o}" ${d[ku]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${km}" onchange="onFieldChange('${km}',this.value)"><option value=""></option>${DATA.mitigazBersaglio.map(o=>`<option value="${o}" ${d[km]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${kv}" onchange="onFieldChange('${kv}',this.value)"><option value=""></option>${DATA.prescValutative.map(o=>`<option value="${o}" ${d[kv]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${krm}" onchange="onFieldChange('${krm}',this.value)"><option value=""></option>${DATA.monitoraggio.map(o=>`<option value="${o}" ${d[krm]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+    <div class="form-grid">
+      <div class="presc-card-list">
+        ${[1,2,3].map(i=>{
+          const ki=`presc_int_${i}`,ku=`presc_urg_${i}`,km=`presc_mit_${i}`,kv=`presc_val_${i}`,krm=`presc_urgm_${i}`;
+          return `<div class="presc-card">
+            <div class="presc-card-num">Prescrizione ${i}</div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Intervento Colturale</div>
+              <div class="presc-card-value"><select class="form-select" name="${ki}" onchange="onFieldChange('${ki}',this.value)"><option value=""></option>${DATA.prescColturali.map(o=>`<option value="${o}" ${d[ki]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Urgenza</div>
+              <div class="presc-card-value"><select class="form-select" name="${ku}" onchange="onFieldChange('${ku}',this.value)"><option value=""></option>${DATA.urgenza.map(o=>`<option value="${o}" ${d[ku]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Mitigazione Bersaglio</div>
+              <div class="presc-card-value"><select class="form-select" name="${km}" onchange="onFieldChange('${km}',this.value)"><option value=""></option>${DATA.mitigazBersaglio.map(o=>`<option value="${o}" ${d[km]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Prescr. Valutative</div>
+              <div class="presc-card-value"><select class="form-select" name="${kv}" onchange="onFieldChange('${kv}',this.value)"><option value=""></option>${DATA.prescValutative.map(o=>`<option value="${o}" ${d[kv]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Urg/Monit</div>
+              <div class="presc-card-value"><select class="form-select" name="${krm}" onchange="onFieldChange('${krm}',this.value)"><option value=""></option>${DATA.monitoraggio.map(o=>`<option value="${o}" ${d[krm]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
   </div>
   <div class="form-section">
@@ -596,26 +605,35 @@ function buildTRGS(){
   </div>
   <div class="form-section">
     <div class="form-section-header"><span class="section-icon">✂️</span>Prescrizioni Indicative ed Eventuali Prescrizioni Urgenti</div>
-    <div class="diag-table-wrap">
-      <table class="diag-table presc-table">
-        <thead><tr>
-          <th>Interventi Colturali</th><th>Urgenza</th>
-          <th>Mitigazione Bersaglio</th>
-          <th>Prescrizioni Valutative</th><th>Urg/Monit</th>
-        </tr></thead>
-        <tbody>
-          ${[1,2,3].map(i=>{
-            const ki=`presc_int_${i}`,ku=`presc_urg_${i}`,km=`presc_mit_${i}`,kv=`presc_val_${i}`,krm=`presc_urgm_${i}`;
-            return `<tr>
-              <td><select class="form-select diag-sel" name="${ki}" onchange="onFieldChange('${ki}',this.value)"><option value=""></option>${DATA.prescColturali.map(o=>`<option value="${o}" ${d[ki]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${ku}" onchange="onFieldChange('${ku}',this.value)"><option value=""></option>${DATA.urgenza.map(o=>`<option value="${o}" ${d[ku]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${km}" onchange="onFieldChange('${km}',this.value)"><option value=""></option>${DATA.mitigazBersaglio.map(o=>`<option value="${o}" ${d[km]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${kv}" onchange="onFieldChange('${kv}',this.value)"><option value=""></option>${DATA.prescValutative.map(o=>`<option value="${o}" ${d[kv]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-              <td><select class="form-select diag-sel" name="${krm}" onchange="onFieldChange('${krm}',this.value)"><option value=""></option>${DATA.monitoraggio.map(o=>`<option value="${o}" ${d[krm]===o?'selected':''}>${o}</option>`).join('')}</select></td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+    <div class="form-grid">
+      <div class="presc-card-list">
+        ${[1,2,3].map(i=>{
+          const ki=`presc_int_${i}`,ku=`presc_urg_${i}`,km=`presc_mit_${i}`,kv=`presc_val_${i}`,krm=`presc_urgm_${i}`;
+          return `<div class="presc-card">
+            <div class="presc-card-num">Prescrizione ${i}</div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Intervento Colturale</div>
+              <div class="presc-card-value"><select class="form-select" name="${ki}" onchange="onFieldChange('${ki}',this.value)"><option value=""></option>${DATA.prescColturali.map(o=>`<option value="${o}" ${d[ki]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Urgenza</div>
+              <div class="presc-card-value"><select class="form-select" name="${ku}" onchange="onFieldChange('${ku}',this.value)"><option value=""></option>${DATA.urgenza.map(o=>`<option value="${o}" ${d[ku]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Mitigazione Bersaglio</div>
+              <div class="presc-card-value"><select class="form-select" name="${km}" onchange="onFieldChange('${km}',this.value)"><option value=""></option>${DATA.mitigazBersaglio.map(o=>`<option value="${o}" ${d[km]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Prescr. Valutative</div>
+              <div class="presc-card-value"><select class="form-select" name="${kv}" onchange="onFieldChange('${kv}',this.value)"><option value=""></option>${DATA.prescValutative.map(o=>`<option value="${o}" ${d[kv]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Urg/Monit</div>
+              <div class="presc-card-value"><select class="form-select" name="${krm}" onchange="onFieldChange('${krm}',this.value)"><option value=""></option>${DATA.monitoraggio.map(o=>`<option value="${o}" ${d[krm]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
   </div>
   <div class="form-section">
@@ -798,17 +816,35 @@ function buildORD(){
   <!-- PRESCRIZIONI -->
   <div class="form-section">
     <div class="form-section-header"><span class="section-icon">✂️</span>Prescrizioni Indicative ed Eventuali Prescrizioni Urgenti</div>
-    <div class="diag-table-wrap">
-      <table class="diag-table presc-table">
-        <thead><tr>
-          <th>Interventi Colturali</th>
-          <th>Urgenza</th>
-          <th>Mitigazione Bersaglio</th>
-          <th>Prescrizioni Valutative</th>
-          <th>Urg/Monit</th>
-        </tr></thead>
-        <tbody>${prescRows('int','val','mit',3)}</tbody>
-      </table>
+    <div class="form-grid">
+      <div class="presc-card-list">
+        ${[1,2,3].map(i=>{
+          const ki=`presc_int_${i}`,ku=`presc_urg_${i}`,km=`presc_mit_${i}`,kv=`presc_val_${i}`,krm=`presc_urgm_${i}`;
+          return `<div class="presc-card">
+            <div class="presc-card-num">Prescrizione ${i}</div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Intervento Colturale</div>
+              <div class="presc-card-value"><select class="form-select" name="${ki}" onchange="onFieldChange('${ki}',this.value)"><option value=""></option>${DATA.prescColturali.map(o=>`<option value="${o}" ${d[ki]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Urgenza</div>
+              <div class="presc-card-value"><select class="form-select" name="${ku}" onchange="onFieldChange('${ku}',this.value)"><option value=""></option>${DATA.urgenza.map(o=>`<option value="${o}" ${d[ku]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Mitigazione Bersaglio</div>
+              <div class="presc-card-value"><select class="form-select" name="${km}" onchange="onFieldChange('${km}',this.value)"><option value=""></option>${DATA.mitigazBersaglio.map(o=>`<option value="${o}" ${d[km]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Prescr. Valutative</div>
+              <div class="presc-card-value"><select class="form-select" name="${kv}" onchange="onFieldChange('${kv}',this.value)"><option value=""></option>${DATA.prescValutative.map(o=>`<option value="${o}" ${d[kv]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+            <div class="presc-card-row">
+              <div class="presc-card-label">Urg/Monit</div>
+              <div class="presc-card-value"><select class="form-select" name="${krm}" onchange="onFieldChange('${krm}',this.value)"><option value=""></option>${DATA.monitoraggio.map(o=>`<option value="${o}" ${d[krm]===o?'selected':''}>${o}</option>`).join('')}</select></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
   </div>
 

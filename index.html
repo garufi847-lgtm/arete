@@ -822,6 +822,61 @@ html, body {
 .presc-table thead th { width: 20%; }
 .presc-table thead th:first-child { width: 32%; }
 
+/* ===== PRESCRIZIONI — layout a card verticale ===== */
+.presc-card-list { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.presc-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.presc-card-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  border-bottom: 1px solid var(--border);
+  min-height: 38px;
+}
+.presc-card-row:last-child { border-bottom: none; }
+.presc-card-label {
+  background: var(--surface2);
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border);
+}
+.presc-card-value {
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+}
+.presc-card-value select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+}
+.presc-card-value select:focus {
+  outline: none;
+  border-color: var(--sage);
+}
+.presc-card-num {
+  background: var(--forest);
+  color: var(--cream);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  letter-spacing: 0.05em;
+}
+
 /* ===== MOBILE overrides ===== */
 @media (max-width: 767px) {
   .form-input, .form-select { padding: 10px 12px; }
