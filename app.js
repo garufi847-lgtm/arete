@@ -942,7 +942,6 @@ function showExportModal(id){
       <div class="modal-subtitle">${f.type.toUpperCase()} · ${sp} · ${f.data.data||''}</div>
       <div class="export-options">
         <div class="export-option" id="export-opt-pdf-${id}" onclick="exportPDF('${id}')"><div class="export-icon">📄</div><div class="export-info"><h4>Apri PDF</h4><p>Visualizza e stampa la scheda ARETE</p></div></div>
-        <div class="export-option" id="export-opt-share-${id}" style="display:none" onclick="condividiPDFGenerato('${id}')"><div class="export-icon">📤</div><div class="export-info"><h4>Condividi PDF</h4><p>Invia su WhatsApp, Drive, Mail o salva</p></div></div>
         <div class="export-option" onclick="exportJSON('${id}')"><div class="export-icon">🗂</div><div class="export-info"><h4>JSON</h4><p>Dati strutturati di questa scheda</p></div></div>
       </div>`;
   } else {
@@ -2007,7 +2006,7 @@ async function exportPDF(id){
   if(nomeInput===null) return;
   const nomePulito=(nomeInput.trim()||nomeSug).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_');
 
-  // Genera HTML del PDF (uguale per tutti)
+  // Genera HTML del PDF
   const html=(f.type==='ord'?buildPDFOrd(f):buildPDF(f))
     .replace(/onclick="window\.print\(\)"/g,'onclick="document.title=\''+nomePulito+'\';window.print()"')
     .replace(/<title>[^<]*/,'<title>'+nomePulito);
@@ -2016,22 +2015,35 @@ async function exportPDF(id){
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
   _pdfBlobs[id]={blob, nome:nomePulito};
 
-  // Tenta window.open (desktop/browser)
+  // Apri/scarica il PDF
   const w=window.open('','_blank');
-  if(w){
-    w.document.write(html);w.document.close();
-  } else {
-    // APK/WebView: scarica direttamente
-    salvaPDFBlob(blob, nomePulito+'.html');
-  }
+  if(w){ w.document.write(html); w.document.close(); }
+  else { salvaPDFBlob(blob, nomePulito+'.html'); }
 
-  // Mostra il pulsante Condividi nel modal
+  // Ricostruisci il modal con il pulsante Condividi visibile
   setTimeout(()=>{
-    sel('export-modal').classList.remove('hidden');
-    const shareBtn=document.getElementById('export-opt-share-'+id);
-    if(shareBtn) shareBtn.style.display='flex';
-    const pdfBtn=document.getElementById('export-opt-pdf-'+id);
-    if(pdfBtn) pdfBtn.querySelector('h4').textContent='PDF generato ✅';
+    const sp=(f.data.specie||'').split(' - ')[0]||'';
+    const modal=sel('export-modal');
+    const content=sel('export-modal-content');
+    content.innerHTML=`
+      <div class="modal-handle"></div>
+      <div class="modal-title">Esporta Scheda</div>
+      <div class="modal-subtitle">${f.type.toUpperCase()} · ${sp} · ${f.data.data||''}</div>
+      <div class="export-options">
+        <div class="export-option" onclick="exportPDF('${id}')">
+          <div class="export-icon">📄</div>
+          <div class="export-info"><h4>PDF generato ✅</h4><p>Premi per rigenerare con nuovo nome</p></div>
+        </div>
+        <div class="export-option" onclick="condividiPDFGenerato('${id}')">
+          <div class="export-icon">📤</div>
+          <div class="export-info"><h4>Condividi PDF</h4><p>Invia su WhatsApp, Drive, Mail o salva</p></div>
+        </div>
+        <div class="export-option" onclick="exportJSON('${id}')">
+          <div class="export-icon">🗂</div>
+          <div class="export-info"><h4>JSON</h4><p>Dati strutturati di questa scheda</p></div>
+        </div>
+      </div>`;
+    modal.classList.remove('hidden');
     showToast('PDF pronto — premi Condividi per inviarlo','success');
   },400);
 }
