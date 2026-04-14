@@ -1611,23 +1611,83 @@ function buildPDFOrd(f){
   <body>
   <div class="pbtn-wrap">
     <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
-    <button class="pbtn pbtn-blue" onclick="(function(){
-      var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
-      var nome=document.title||'ARETE_scheda';
-      var file=new File([blob],nome+'.html',{type:'text/html'});
-      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-        navigator.share({title:nome,files:[file]}).catch(function(e){if(e.name!=='AbortError'){
-          var u=URL.createObjectURL(blob);var a=document.createElement('a');
-          a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
-          setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
-        }});
-      } else {
-        var u=URL.createObjectURL(blob);var a=document.createElement('a');
-        a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
-        setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
-      }
-    })()">📤 Condividi</button>
+    <button class="pbtn pbtn-blue" id="btn-condividi" onclick="condividiComePDF(this)">📤 Condividi PDF</button>
   </div>
+  <script>
+  function condividiComePDF(btn){
+    btn.disabled=true; btn.textContent='⏳ Generazione...';
+    var nome=document.title||'ARETE_scheda';
+    // Carica jsPDF se non presente
+    if(!window.jspdf){
+      var s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=function(){generaPDFECondividi(nome,btn);};
+      s.onerror=function(){fallbackHTML(nome,btn);};
+      document.head.appendChild(s);
+    } else {
+      generaPDFECondividi(nome,btn);
+    }
+  }
+  function generaPDFECondividi(nome,btn){
+    try{
+      // Usa la funzione print-to-canvas di jsPDF: converte HTML in PDF
+      var doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+      // jsPDF html() plugin non è disponibile nella versione base
+      // Usiamo l'approccio: cattura con html2canvas se disponibile, altrimenti fallback
+      if(window.html2canvas){
+        html2canvas(document.querySelector('.wrap')||document.body,{scale:1.5,useCORS:true}).then(function(canvas){
+          var imgData=canvas.toDataURL('image/jpeg',0.85);
+          var pw=doc.internal.pageSize.getWidth();
+          var ph=doc.internal.pageSize.getHeight();
+          var ratio=canvas.width/canvas.height;
+          var imgH=pw/ratio;
+          var pos=0;
+          doc.addImage(imgData,'JPEG',0,pos,pw,imgH);
+          while(imgH>ph){
+            pos-=ph; imgH-=ph;
+            doc.addPage();
+            doc.addImage(imgData,'JPEG',0,pos,pw,canvas.height*(pw/canvas.width));
+          }
+          inviaPDFBlob(doc.output('blob'),nome,btn);
+        }).catch(function(){fallbackHTML(nome,btn);});
+      } else {
+        // Carica html2canvas
+        var s2=document.createElement('script');
+        s2.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s2.onload=function(){generaPDFECondividi(nome,btn);};
+        s2.onerror=function(){fallbackHTML(nome,btn);};
+        document.head.appendChild(s2);
+      }
+    }catch(e){fallbackHTML(nome,btn);}
+  }
+  function inviaPDFBlob(blob,nome,btn){
+    btn.disabled=false; btn.textContent='📤 Condividi PDF';
+    var file=new File([blob],nome+'.pdf',{type:'application/pdf'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({title:nome,files:[file]}).catch(function(e){
+        if(e.name!=='AbortError') scaricaBlob(blob,nome+'.pdf');
+      });
+    } else {
+      scaricaBlob(blob,nome+'.pdf');
+    }
+  }
+  function scaricaBlob(blob,nome){
+    var u=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=u;a.download=nome;
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
+  }
+  function fallbackHTML(nome,btn){
+    btn.disabled=false; btn.textContent='📤 Condividi PDF';
+    var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
+    var file=new File([blob],nome+'.html',{type:'text/html'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({title:nome,files:[file]}).catch(function(){});
+    } else {
+      scaricaBlob(blob,nome+'.html');
+    }
+  }
+  </script>
   <div class="wrap">
   <table>
 
@@ -1925,23 +1985,83 @@ function buildPDF(f){
   <body>
   <div class="pbtn-wrap">
     <button class="pbtn" onclick="window.print()">🖨 Stampa / Salva PDF</button>
-    <button class="pbtn pbtn-blue" onclick="(function(){
-      var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
-      var nome=document.title||'ARETE_scheda';
-      var file=new File([blob],nome+'.html',{type:'text/html'});
-      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-        navigator.share({title:nome,files:[file]}).catch(function(e){if(e.name!=='AbortError'){
-          var u=URL.createObjectURL(blob);var a=document.createElement('a');
-          a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
-          setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
-        }});
-      } else {
-        var u=URL.createObjectURL(blob);var a=document.createElement('a');
-        a.href=u;a.download=nome+'.html';document.body.appendChild(a);a.click();
-        setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
-      }
-    })()">📤 Condividi</button>
+    <button class="pbtn pbtn-blue" id="btn-condividi" onclick="condividiComePDF(this)">📤 Condividi PDF</button>
   </div>
+  <script>
+  function condividiComePDF(btn){
+    btn.disabled=true; btn.textContent='⏳ Generazione...';
+    var nome=document.title||'ARETE_scheda';
+    // Carica jsPDF se non presente
+    if(!window.jspdf){
+      var s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload=function(){generaPDFECondividi(nome,btn);};
+      s.onerror=function(){fallbackHTML(nome,btn);};
+      document.head.appendChild(s);
+    } else {
+      generaPDFECondividi(nome,btn);
+    }
+  }
+  function generaPDFECondividi(nome,btn){
+    try{
+      // Usa la funzione print-to-canvas di jsPDF: converte HTML in PDF
+      var doc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+      // jsPDF html() plugin non è disponibile nella versione base
+      // Usiamo l'approccio: cattura con html2canvas se disponibile, altrimenti fallback
+      if(window.html2canvas){
+        html2canvas(document.querySelector('.wrap')||document.body,{scale:1.5,useCORS:true}).then(function(canvas){
+          var imgData=canvas.toDataURL('image/jpeg',0.85);
+          var pw=doc.internal.pageSize.getWidth();
+          var ph=doc.internal.pageSize.getHeight();
+          var ratio=canvas.width/canvas.height;
+          var imgH=pw/ratio;
+          var pos=0;
+          doc.addImage(imgData,'JPEG',0,pos,pw,imgH);
+          while(imgH>ph){
+            pos-=ph; imgH-=ph;
+            doc.addPage();
+            doc.addImage(imgData,'JPEG',0,pos,pw,canvas.height*(pw/canvas.width));
+          }
+          inviaPDFBlob(doc.output('blob'),nome,btn);
+        }).catch(function(){fallbackHTML(nome,btn);});
+      } else {
+        // Carica html2canvas
+        var s2=document.createElement('script');
+        s2.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s2.onload=function(){generaPDFECondividi(nome,btn);};
+        s2.onerror=function(){fallbackHTML(nome,btn);};
+        document.head.appendChild(s2);
+      }
+    }catch(e){fallbackHTML(nome,btn);}
+  }
+  function inviaPDFBlob(blob,nome,btn){
+    btn.disabled=false; btn.textContent='📤 Condividi PDF';
+    var file=new File([blob],nome+'.pdf',{type:'application/pdf'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({title:nome,files:[file]}).catch(function(e){
+        if(e.name!=='AbortError') scaricaBlob(blob,nome+'.pdf');
+      });
+    } else {
+      scaricaBlob(blob,nome+'.pdf');
+    }
+  }
+  function scaricaBlob(blob,nome){
+    var u=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=u;a.download=nome;
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},1000);
+  }
+  function fallbackHTML(nome,btn){
+    btn.disabled=false; btn.textContent='📤 Condividi PDF';
+    var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
+    var file=new File([blob],nome+'.html',{type:'text/html'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({title:nome,files:[file]}).catch(function(){});
+    } else {
+      scaricaBlob(blob,nome+'.html');
+    }
+  }
+  </script>
   <div class="page">
   <table>
     <tr>
