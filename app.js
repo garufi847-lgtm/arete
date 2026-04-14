@@ -941,8 +941,8 @@ function showExportModal(id){
     content.innerHTML=`<div class="modal-handle"></div><div class="modal-title">Esporta Scheda</div>
       <div class="modal-subtitle">${f.type.toUpperCase()} · ${sp} · ${f.data.data||''}</div>
       <div class="export-options">
-        <div class="export-option" onclick="exportPDF('${id}')"><div class="export-icon">📄</div><div class="export-info"><h4>Apri PDF</h4><p>Visualizza e stampa la scheda ARETE</p></div></div>
-        <div class="export-option" onclick="shareSaved('${id}')"><div class="export-icon">📤</div><div class="export-info"><h4>Condividi PDF</h4><p>Salva e invia via WhatsApp, Mail o altri</p></div></div>
+        <div class="export-option" id="export-opt-pdf-${id}" onclick="exportPDF('${id}')"><div class="export-icon">📄</div><div class="export-info"><h4>Apri PDF</h4><p>Visualizza e stampa la scheda ARETE</p></div></div>
+        <div class="export-option" id="export-opt-share-${id}" style="display:none" onclick="condividiPDFGenerato('${id}')"><div class="export-icon">📤</div><div class="export-info"><h4>Condividi PDF</h4><p>Invia su WhatsApp, Drive, Mail o salva</p></div></div>
         <div class="export-option" onclick="exportJSON('${id}')"><div class="export-icon">🗂</div><div class="export-info"><h4>JSON</h4><p>Dati strutturati di questa scheda</p></div></div>
       </div>`;
   } else {
@@ -1993,6 +1993,9 @@ function buildPDF(f){
   </div></body></html>`;
 }
 
+// Mappa id → blob PDF già generato (per condivisione)
+const _pdfBlobs = {};
+
 async function exportPDF(id){
   const f=savedForms.find(x=>x.id===id);if(!f)return;
   sel('export-modal').classList.add('hidden');
@@ -2003,23 +2006,75 @@ async function exportPDF(id){
   const nomeInput=prompt('Nome del file PDF:',nomeSug);
   if(nomeInput===null) return;
   const nomePulito=(nomeInput.trim()||nomeSug).replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_');
-  const nomeFile=nomePulito+'.pdf';
 
-  // Genera HTML fedele e aprilo — uguale su desktop e Android
-  const html=buildPDF(f)
-    .replace(/onclick="window\.print\(\)"/,'onclick="document.title=\''+nomePulito+'\';window.print()"')
-    .replace('<title>ARETE','<title>'+nomePulito);
+  // Genera HTML del PDF (uguale per tutti)
+  const html=(f.type==='ord'?buildPDFOrd(f):buildPDF(f))
+    .replace(/onclick="window\.print\(\)"/g,'onclick="document.title=\''+nomePulito+'\';window.print()"')
+    .replace(/<title>[^<]*/,'<title>'+nomePulito);
 
+  // Salva il blob per la condivisione successiva
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  _pdfBlobs[id]={blob, nome:nomePulito};
+
+  // Tenta window.open (desktop/browser)
   const w=window.open('','_blank');
   if(w){
     w.document.write(html);w.document.close();
-    showToast('PDF aperto – Stampa → Salva come PDF','success');
-    return;
+  } else {
+    // APK/WebView: scarica direttamente
+    salvaPDFBlob(blob, nomePulito+'.html');
   }
-  // Popup bloccato o Android WebView → scarica come blob HTML (stampabile)
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  salvaPDFBlob(blob,nomePulito+'.html');
-  showToast('Apri il file e usa Stampa → Salva come PDF','success');
+
+  // Mostra il pulsante Condividi nel modal
+  setTimeout(()=>{
+    sel('export-modal').classList.remove('hidden');
+    const shareBtn=document.getElementById('export-opt-share-'+id);
+    if(shareBtn) shareBtn.style.display='flex';
+    const pdfBtn=document.getElementById('export-opt-pdf-'+id);
+    if(pdfBtn) pdfBtn.querySelector('h4').textContent='PDF generato ✅';
+    showToast('PDF pronto — premi Condividi per inviarlo','success');
+  },400);
+}
+
+// Condividi il PDF già generato con exportPDF
+async function condividiPDFGenerato(id){
+  const entry=_pdfBlobs[id];
+  if(!entry){showToast('Genera prima il PDF','error');return;}
+  sel('export-modal').classList.add('hidden');
+
+  const {blob, nome}=entry;
+  const nomeFile=nome+'.html';
+  const file=new File([blob],nomeFile,{type:'text/html'});
+
+  // Web Share API (Android/iOS — apre menu nativo: Drive, WA, Mail, Files...)
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({
+        title:'Scheda ARETE – '+nome,
+        text:'Scheda ARETE – '+nome,
+        files:[file]
+      });
+      showToast('✅ PDF condiviso!','success');
+      return;
+    }catch(e){if(e.name==='AbortError')return;}
+  }
+
+  // Fallback Median APK
+  if(typeof medianDownloadBlobUrl==='function'){
+    try{
+      medianDownloadBlobUrl(URL.createObjectURL(blob),'pdf_'+Date.now(),nomeFile);
+      showToast('✅ PDF salvato','success');
+      return;
+    }catch(e){}
+  }
+
+  // Fallback download diretto
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=nomeFile;a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+  showToast('✅ PDF scaricato','success');
 }
 function exportAllPDF(){
   if(!savedForms.length){showToast('Nessuna scheda','error');return;}
