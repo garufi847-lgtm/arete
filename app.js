@@ -2001,8 +2001,7 @@ async function exportPDF(id){
     .replace(/onclick="window\.print\(\)"/g,'onclick="document.title=\''+nomePulito+'\';window.print()"')
     .replace(/<title>[^<]*/,'<title>'+nomePulito);
 
-  // Aggiungi script che apre automaticamente il dialogo stampa (Salva come PDF)
-  // e un pulsante per ri-aprire il dialogo se chiuso
+  // Barra in fondo con pulsante Salva PDF (compatibile tutti i browser)
   const htmlConStampa = html.replace('</body>',
     `<div id="save-bar" style="position:fixed;bottom:0;left:0;right:0;background:#1a2e1a;color:#fff;padding:12px 16px;display:flex;gap:10px;align-items:center;z-index:999;box-shadow:0 -3px 12px rgba(0,0,0,.3)">
       <span style="flex:1;font-size:13px;font-weight:600">📄 ${nomePulito}.pdf</span>
@@ -2010,28 +2009,43 @@ async function exportPDF(id){
     </div>
     <div style="height:60px"></div>
     <script>
-      // Apre automaticamente il dialogo stampa dopo il caricamento
-      window.addEventListener('load',function(){
-        setTimeout(function(){window.print();},500);
-      });
+      // Apre il dialogo stampa dopo il caricamento completo della pagina
+      // Compatibile Chrome, Edge, Firefox, Safari
+      function aprStampa(){
+        try{ window.focus(); window.print(); }catch(e){}
+      }
+      if(document.readyState==='complete'){
+        setTimeout(aprStampa, 600);
+      } else {
+        window.addEventListener('load', function(){ setTimeout(aprStampa, 600); });
+      }
     <\/script>
     </body>`
   );
 
   const isApk=typeof medianDownloadBlobUrl==='function'||(!!window.median)||/median/i.test(navigator.userAgent);
-  const w=!isApk?window.open('','_blank'):null;
 
-  if(w){
-    // Browser/Chrome: apri pagina e il dialogo stampa si apre automaticamente
-    // L'utente sceglie "Salva come PDF" e la cartella di destinazione
-    w.document.write(htmlConStampa); w.document.close();
-    // Pre-genera blob PDF per il Condividi
-    generaPDFBlob(f, nomePulito+'.pdf').then(function(pdfBlob){
-      window._sharedPDFBlob=pdfBlob?{blob:pdfBlob,nome:nomePulito+'.pdf'}:null;
-    });
-    showToast('Scegli "Salva come PDF" nel dialogo','success');
+  if(!isApk){
+    // Browser desktop (Chrome, Edge, Firefox, Safari)
+    // Usa blob URL — compatibile con tutti i browser, non richiede document.write
+    const blob=new Blob([htmlConStampa],{type:'text/html;charset=utf-8'});
+    const blobUrl=URL.createObjectURL(blob);
+    const w=window.open(blobUrl,'_blank');
+    if(w){
+      // Libera il blob URL dopo che la pagina è caricata
+      setTimeout(()=>URL.revokeObjectURL(blobUrl), 30000);
+      // Pre-genera blob PDF per il Condividi
+      generaPDFBlob(f, nomePulito+'.pdf').then(function(pdfBlob){
+        window._sharedPDFBlob=pdfBlob?{blob:pdfBlob,nome:nomePulito+'.pdf'}:null;
+      });
+      showToast('Scegli "Salva come PDF" nel dialogo','success');
+    } else {
+      // Popup bloccato — fallback APK path
+      URL.revokeObjectURL(blobUrl);
+      showToast('Consenti i popup nel browser','error');
+    }
   } else {
-    // APK: genera PDF vero e mostra menu condivisione/salvataggio
+    // APK/WebView: genera PDF vero e mostra menu condivisione
     showToast('Generazione PDF…');
     generaPDFBlob(f, nomePulito+'.pdf').then(function(pdfBlob){
       if(!pdfBlob){
