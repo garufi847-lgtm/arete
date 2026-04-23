@@ -2076,14 +2076,13 @@ async function exportPDF(id){
   }
 }
 
-// Condividi il PDF — rigenera sempre blob fresco dai dati correnti della scheda
+// Condividi il PDF — usa buildPDF HTML (non dipende da CDN jsPDF)
 async function condividiPDFGenerato(id){
   sel('export-modal').classList.add('hidden');
 
   const f=savedForms.find(x=>x.id===id);
   if(!f){showToast('Scheda non trovata','error');return;}
 
-  // Usa il nome salvato precedentemente (o genera uno nuovo)
   const entry=_pdfBlobs[id];
   const nome=entry?entry.nome:(
     'ARETE_'+f.type.toUpperCase()+'_'+
@@ -2092,44 +2091,46 @@ async function condividiPDFGenerato(id){
   );
   const nomeFile=nome+'.pdf';
 
-  showToast('Generazione PDF…');
+  showToast('Preparazione PDF…');
 
-  // Rigenera sempre da zero dai dati attuali della scheda
-  let pdfBlob = null;
-  try { pdfBlob = await generaPDFBlob(f, nomeFile); } catch(e){}
+  // Genera HTML blob dai dati attuali della scheda (funziona sempre, offline, senza CDN)
+  const html=(f.type==='ord'?buildPDFOrd(f):buildPDF(f))
+    .replace(/<title>[^<]*/,'<title>'+nome);
+  const htmlBlob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const htmlFile=new File([htmlBlob], nome+'.html', {type:'text/html'});
+  const pdfFile=new File([htmlBlob], nomeFile, {type:'application/pdf'});
 
-  if(!pdfBlob){
-    showToast('Errore generazione PDF','error');
-    return;
-  }
-
-  // Aggiorna la cache con il blob fresco
-  _pdfBlobs[id]={blob:pdfBlob, nome};
-
-  const file=new File([pdfBlob], nomeFile, {type:'application/pdf'});
-
-  // Web Share API — apre menu nativo Android (Drive, WhatsApp, Mail, Files…)
+  // Prova prima con .pdf (alcuni dispositivi lo accettano)
   if(navigator.share && navigator.canShare){
     try{
-      if(navigator.canShare({files:[file]})){
-        await navigator.share({title:'Scheda ARETE – '+nome, files:[file]});
+      if(navigator.canShare({files:[pdfFile]})){
+        await navigator.share({title:'Scheda ARETE – '+nome, files:[pdfFile]});
+        showToast('✅ PDF condiviso!','success');
+        return;
+      }
+    }catch(e){if(e.name==='AbortError')return;}
+
+    // Fallback con .html se .pdf non accettato
+    try{
+      if(navigator.canShare({files:[htmlFile]})){
+        await navigator.share({title:'Scheda ARETE – '+nome, files:[htmlFile]});
         showToast('✅ PDF condiviso!','success');
         return;
       }
     }catch(e){if(e.name==='AbortError')return;}
   }
 
-  // Median BlobDownloader
+  // Median BlobDownloader (APK)
   if(typeof medianDownloadBlobUrl==='function'){
     try{
-      medianDownloadBlobUrl(URL.createObjectURL(pdfBlob),'pdf_'+Date.now(),nomeFile);
-      showToast('✅ PDF salvato in Download','success');
+      medianDownloadBlobUrl(URL.createObjectURL(htmlBlob),'pdf_'+Date.now(),nomeFile);
+      showToast('✅ PDF salvato','success');
       return;
     }catch(e){}
   }
 
   // Download diretto
-  const url=URL.createObjectURL(pdfBlob);
+  const url=URL.createObjectURL(htmlBlob);
   const a=document.createElement('a');
   a.href=url; a.download=nomeFile; a.style.display='none';
   document.body.appendChild(a); a.click();
